@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0E1B2E">
+<link rel="manifest" href="manifest.json">
+<title>SH Running Coach</title>
+<style>
+  :root{
+    --paper:#EEF1F6; --card:#FFFFFF; --ink:#0E1B2E; --ink-soft:#54607A; --ink-faint:#8A94A6;
+    --line:#DCE2EC; --line-soft:#EAEEF4;
+    --off:#2E7D5B; --flight:#3B5578; --layover:#1F8A9B; --reserve:#C9871A;
+    --easy:#2E7D5B; --easy-bg:#E5F1EA; --long:#5A4A9C; --long-bg:#ECE7F6;
+    --qual:#D6721A; --qual-bg:#FBE9D8; --tread:#1F8A9B; --tread-bg:#DCF0F3;
+    --heat:#C64B34; --carb:#D6902A; --fat:#3F7F5C; --accent:#1F8A9B;
+    --sans:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Pretendard","Segoe UI",Roboto,sans-serif;
+    --mono:ui-monospace,"SFMono-Regular","SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  body{font-family:var(--sans);background:var(--paper);color:var(--ink);line-height:1.4;-webkit-font-smoothing:antialiased;padding-bottom:72px;}
+  .app{max-width:640px;margin:0 auto;padding:14px 14px 0;}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:6px 2px 14px;}
+  .brand{font-weight:800;font-size:18px;letter-spacing:-.01em;}
+  .brand .en{font-family:var(--mono);font-size:11px;color:var(--ink-faint);font-weight:600;margin-left:6px;letter-spacing:.05em;}
+  .dtag{font-family:var(--mono);font-size:11px;color:var(--ink-soft);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px 11px;}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:12px;}
+  .card h2{font-size:13px;font-weight:800;margin-bottom:10px;}
+  .card h3{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:9px;}
+  .muted{color:var(--ink-soft);font-size:12px;}
+
+  .strip{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;font-weight:600;color:var(--ink-soft);background:var(--paper);border:1px solid var(--line);border-radius:5px;padding:3px 7px 3px 5px;}
+  .strip i{width:3px;height:11px;border-radius:2px;}
+  .strip.off i{background:var(--off);} .strip.flight i{background:var(--flight);}
+  .strip.layover i{background:var(--layover);} .strip.reserve i{background:var(--reserve);}
+  .chip{font-family:var(--mono);font-size:10px;font-weight:800;border-radius:5px;padding:2px 7px;}
+  .chip.high{background:#FBEAD3;color:#8A5A12;border:1px solid #F0DBB0;}
+  .chip.low{background:var(--easy-bg);color:#1E5A40;border:1px solid #CFE6DA;}
+  .chip.walk{background:var(--easy-bg);color:#1E5A40;border:1px solid #CFE6DA;}
+
+  .sess{border-left:4px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;}
+  .sess.k-easy{border-left-color:var(--easy);background:linear-gradient(90deg,var(--easy-bg),transparent 70%);}
+  .sess.k-long{border-left-color:var(--long);background:linear-gradient(90deg,var(--long-bg),transparent 70%);}
+  .sess.k-qual{border-left-color:var(--qual);background:linear-gradient(90deg,var(--qual-bg),transparent 70%);}
+  .sess.k-tread{border-left-color:var(--tread);background:linear-gradient(90deg,var(--tread-bg),transparent 70%);}
+  .sess.k-rest{border-left-color:var(--line);}
+  .sess-head{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:7px;}
+  .sess-tag{font-size:13px;font-weight:800;}
+  .sess-meta{font-family:var(--mono);font-size:11px;color:var(--ink-soft);}
+  .env{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;}
+  .env span{font-family:var(--mono);font-size:10.5px;font-weight:700;border-radius:6px;padding:3px 7px;}
+  .env .t{background:var(--paper);border:1px solid var(--line);color:var(--ink);}
+  .env .p-out{background:var(--easy-bg);color:#1E5A40;} .env .p-tread{background:var(--tread-bg);color:#136572;} .env .p-either{background:#FDF3E0;color:#8A5A12;}
+  .env .h{color:var(--heat);}
+  .bd{display:grid;grid-template-columns:56px 1fr;gap:3px 10px;padding:2px 0;}
+  .bd .l{font-family:var(--mono);font-size:10.5px;font-weight:700;color:var(--ink-faint);padding-top:1px;}
+  .bd .v{font-size:12px;} .bd .v b{font-family:var(--mono);font-weight:700;}
+  .nut{display:flex;align-items:center;gap:8px;border-radius:8px;padding:6px 9px;margin-top:8px;flex-wrap:wrap;}
+  .nut.high{background:#FBF1E2;border:1px solid #F0DBB0;} .nut.low{background:#EAF3ED;border:1px solid #CFE6DA;}
+  .nut .nn{font-size:11px;color:var(--ink-soft);} .nut .nn b{color:var(--ink);}
+  .rest-line{font-size:12.5px;color:var(--ink-soft);} .rest-line b{color:var(--ink-faint);}
+
+  /* week */
+  .wk-nav{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:4px;}
+  .wk-nav button{flex:none;font-family:var(--mono);font-size:11px;font-weight:700;border:1px solid var(--line);background:var(--card);color:var(--ink-soft);border-radius:999px;padding:6px 12px;cursor:pointer;}
+  .wk-nav button.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .daycard{border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:9px;background:var(--card);}
+  .daycard .dh{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
+  .daycard .dn{font-family:var(--mono);font-weight:700;font-size:15px;}
+  .daycard .dn .dw{font-size:11px;color:var(--ink-soft);margin-left:4px;}
+  .daycard.today{box-shadow:0 0 0 2px rgba(14,27,46,.14);border-color:var(--ink);}
+
+  /* calc + settings */
+  .row{display:flex;gap:10px;flex-wrap:wrap;}
+  .fld{flex:1;min-width:120px;margin-bottom:10px;}
+  .fld label{display:block;font-size:11px;color:var(--ink-soft);font-weight:600;margin-bottom:4px;}
+  .fld input{width:100%;font-family:var(--mono);font-size:14px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);}
+  .fld input:focus{outline:none;border-color:var(--accent);}
+  .btn{width:100%;font-weight:800;font-size:13px;color:#fff;background:var(--ink);border:none;border-radius:10px;padding:12px;cursor:pointer;margin-top:4px;}
+  .btn.sec{background:var(--card);color:var(--ink-soft);border:1px solid var(--line);}
+  .zone{display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--line-soft);font-size:12.5px;}
+  .zone:first-child{border-top:none;} .zone .zn{font-weight:700;} .zone .zv{font-family:var(--mono);color:var(--ink-soft);}
+  .zone .bar{height:12px;border-radius:5px;}
+  .split{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+  .split .s{border:1px solid var(--line-soft);border-radius:8px;padding:8px 10px;text-align:center;}
+  .split .s .sd{font-size:10px;color:var(--ink-faint);} .split .s .sv{font-family:var(--mono);font-weight:800;font-size:15px;margin-top:2px;}
+  .saved{font-size:11px;color:var(--easy);font-weight:700;text-align:center;margin-top:8px;height:14px;}
+
+  /* tab bar */
+  .tabbar{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding:6px 0 8px;z-index:20;}
+  .tabbar .tb{flex:1;text-align:center;background:none;border:none;cursor:pointer;color:var(--ink-faint);font-size:10px;font-weight:700;padding:4px 0;}
+  .tabbar .tb .ic{font-size:18px;display:block;line-height:1.3;}
+  .tabbar .tb.on{color:var(--ink);}
+  .hide{display:none;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand">SH Running Coach<span class="en">MVP</span></div>
+    <div class="dtag" id="dtag">—</div>
+  </div>
+
+  <section id="tab-today"></section>
+  <section id="tab-week" class="hide"></section>
+  <section id="tab-calc" class="hide"></section>
+  <section id="tab-set" class="hide"></section>
+</div>
+
+<nav class="tabbar">
+  <button class="tb on" data-tab="today"><span class="ic">◎</span>오늘</button>
+  <button class="tb" data-tab="week"><span class="ic">▤</span>주간</button>
+  <button class="tb" data-tab="calc"><span class="ic">∑</span>계산기</button>
+  <button class="tb" data-tab="set"><span class="ic">⚙</span>설정</button>
+</nav>
+
+<script>
+/* ---------- storage ---------- */
+const DEFAULT = {
+  heightCm:175, weightKg:80.4, targetKg:77,
+  restHr:57, maxHr:177, atHr:135, antHr:163, cadence:170,
+  tdee:2500, intake:1950,
+  // paces in sec/km [fast, slow]
+  easy:[435,470], recovery:[460,490], long:[440,480], threshold:[390,405], interval:[360,370],
+  warmup:450, recJog:470, strideKmh:"12~13"
+};
+function loadProfile(){ try{ return Object.assign({}, DEFAULT, JSON.parse(localStorage.getItem('shrc_profile')||'{}')); }catch(e){ return {...DEFAULT}; } }
+function saveProfile(p){ localStorage.setItem('shrc_profile', JSON.stringify(p)); }
+let P = loadProfile();
+
+/* ---------- calc module ---------- */
+const kmh = sec => (3600/sec).toFixed(1);
+const kmhRange = ([fast,slow]) => `${kmh(slow)}~${kmh(fast)} km/h`;   // slow sec = lower kmh
+const pace = sec => `${Math.floor(sec/60)}'${String(Math.round(sec%60)).padStart(2,'0')}`;
+const paceRange = ([fast,slow]) => `${pace(fast)}~${pace(slow)}`;
+const secFmt = s => s>=60 ? `${Math.floor(s/60)}분${s%60?String(Math.round(s%60))+'초':''}` : `${Math.round(s)}초`;
+const distTime = (meters, sec_per_km) => secFmt(meters/1000*sec_per_km);
+
+function zones(p){
+  return [
+    {n:'이지/존2', v:`≤${p.atHr-1}`, c:'var(--easy)', w:74, d:'지방연소 · 러닝 80%'},
+    {n:'템포/임계', v:`${p.atHr}~${p.atHr+15}`, c:'var(--qual)', w:84, d:'편안하게 힘든'},
+    {n:'인터벌', v:`${p.antHr-8}~${p.antHr}`, c:'var(--heat)', w:92, d:'AnT 부근'},
+  ];
+}
+
+/* ---------- session builders (profile-driven) ---------- */
+function tm(p){ return { warm:kmh(p.warmup), rec:kmh(p.recJog) }; }
+function easyRun(p, km, rec){
+  const pr = rec ? p.recovery : p.easy;
+  const avg=(pr[0]+pr[1])/2, mins=Math.round(km*avg/60)+4;
+  return {kind:'easy', head:'이지런 · 존2'+(rec?' (회복)':''), meta:`${km}km · 약 ${mins}분`, bd:[
+    ['웜업','첫 1km 걷기→조깅 점진 · 케이던스 '+p.cadence],
+    ['메인',`${km}km @ <b>${paceRange(pr)}</b> (러닝머신 <b>${kmhRange(pr)}</b>) · 심박 <b>≤${p.atHr-1}</b> · 대화 가능`],
+    ['쿨다운','걷기 3~5분 + 정적 스트레칭'],
+  ]};
+}
+function treadRun(p, km){
+  const pr=p.easy, avg=(pr[0]+pr[1])/2, mins=Math.round(km*avg/60)+6;
+  return {kind:'tread', head:'트레드밀 이지 · 존2', meta:`${km}km · 약 ${mins}분`, bd:[
+    ['웜업','걷기 3분 (5.5~6.0 km/h) · 케이던스 '+p.cadence],
+    ['메인',`${km}km @ <b>${paceRange(pr)}</b> (<b>${kmhRange(pr)}</b>) · 경사 1% · 심박 <b>≤${p.atHr-1}</b>`],
+    ['쿨다운','걷기 3분 + 정적 스트레칭'],
+  ]};
+}
+function longRun(p){
+  return {kind:'long', head:'롱런 · 존2', meta:'10~12km · 약 80~100분', bd:[
+    ['웜업',`첫 2km 점진 · 케이던스 ${p.cadence}`],
+    ['메인',`10~12km @ <b>${paceRange(p.long)}</b> (<b>${kmhRange(p.long)}</b>) · 심박 <b>≤${p.atHr-1}</b> · 후반 여유`],
+    ['쿨다운','걷기 5분 + 스트레칭 + 전해질·단백질'],
+  ]};
+}
+function threshold(p){
+  const t=tm(p);
+  return {kind:'qual', head:'임계주 (템포)', meta:'약 6km · 약 43분', bd:[
+    ['웜업',`이지 조깅 10분 @${pace(p.warmup)} (러닝머신 <b>${t.warm} km/h</b>) + 스트라이드 100m×2 (개당 약 25~30초 @ ${p.strideKmh} km/h)`],
+    ['메인',`20분 연속 @ <b>${paceRange(p.threshold)}</b> (러닝머신 <b>${kmhRange(p.threshold)}</b>) · 심박 <b>${p.atHr}~${p.atHr+15}</b>`],
+    ['쿨다운',`이지 조깅 10분 @${pace(p.recJog)} (<b>${t.rec} km/h</b>) + 정적 스트레칭`],
+  ]};
+}
+function interval(p, reps){
+  const t=tm(p), mins=Math.round(23+7.5*reps);
+  return {kind:'qual', head:'목표페이스 인터벌', meta:`약 ${reps+3}~${reps+4}km · 약 ${mins}분`, bd:[
+    ['웜업',`이지 조깅 10분 @${pace(p.warmup)} (러닝머신 <b>${t.warm} km/h</b>)`],
+    ['스트라이드',`100m × 3 · 개당 <b>약 25~30초</b> @ <b>${p.strideKmh} km/h</b> · 사이 걷기 4.5~5.0 km/h 30~60초 회복`],
+    ['메인',`1km × ${reps} @ <b>${paceRange(p.interval)}</b> (러닝머신 <b>${kmhRange(p.interval)}</b>) · 1km <b>${distTime(1000,(p.interval[0]+p.interval[1])/2)}</b> · 심박 <b>${p.antHr-8}~${p.antHr}</b>`],
+    ['리커버리',`반복 사이 · 걷기 <b>5.0~5.5 km/h · 약 90초</b> (또는 300m 조깅 <b>${distTime(300,p.recJog)}</b> @ ${kmh(p.recJog)} km/h) · 심박 130대 초반까지`],
+    ['쿨다운',`이지 조깅 10분 @${pace(p.warmup)} (<b>${t.warm} km/h</b>) + 정적 스트레칭`],
+  ]};
+}
+function build(p, s){
+  if(s.type==='easy') return easyRun(p, s.km, s.rec);
+  if(s.type==='tread') return treadRun(p, s.km);
+  if(s.type==='long') return longRun(p);
+  if(s.type==='threshold') return threshold(p);
+  if(s.type==='interval') return interval(p, s.reps);
+  return {kind:'rest', head:'휴식 / 회복', reason:s.reason||''};
+}
+
+/* ---------- embedded plan (Phase 1 static · Aug 2026) ---------- */
+const NUT = {
+  high:'<b>고탄수 · 섭취 ~2,050</b> · 탄수 200~230g · 유지 근처',
+  low:'<b>저탄수 · 섭취 ~1,850</b> · 탄수 130~150g · 적자일',
+  rec:'<b>저탄수·회복 · 섭취 ~1,800</b> · 단백질·수분 우선'
+};
+const DOW=['일','월','화','수','목','금','토'];
+const WALKOK=new Set([3,6,8,19,20,27,28]);
+// env: [time, place(out/tread/either), eve(y/n/''), heat, note]
+const PLAN = {
+ 1:{dt:'off',duty:'RQOFF',carb:'rec',s:{type:'rest',reason:'완전휴무 (지난주 잔여)'}},
+ 2:{dt:'off',duty:'RQOFF',carb:'low',s:{type:'easy',km:6},env:['새벽 05~06 / 저녁 20+','either','y','낮 34°C·열대야','폭염일 새벽/실내']},
+ 3:{dt:'flight',duty:'FLT ×3',carb:'high',s:{type:'rest',reason:'GMP-CJU-FUK-TAE → 대구 L/O'}},
+ 4:{dt:'layover',duty:'L/O 대구→UBN',carb:'high',opt:1,s:{type:'tread',km:4},env:['오전 (현지)','tread','n','대구 35°C+','저녁 UBN 비행·실내']},
+ 5:{dt:'flight',duty:'UBN-TAE 06:20',carb:'rec',s:{type:'rest',reason:'새벽도착 → L/O · 회복'}},
+ 6:{dt:'flight',duty:'NRT 왕복+DH',carb:'low',s:{type:'rest',reason:'TAE-NRT-TAE → 김포'}},
+ 7:{dt:'off',duty:'OFF',carb:'high',s:{type:'interval',reps:4},env:['새벽 05~05:30 / 저녁(실내)','tread','y','낮 37°C 폭염peak','실내·취침 3h 전']},
+ 8:{dt:'flight',duty:'FLT ×3',carb:'high',s:{type:'rest',reason:'GMP-CJU-KIX-PUS → 부산 L/O'}},
+ 9:{dt:'layover',duty:'L/O 부산→HKG',carb:'high',s:{type:'easy',km:5,rec:1},env:['오전 06~07','either','n','부산 31°C·습함','저녁 HKG 비행']},
+ 10:{dt:'layover',duty:'L/O 홍콩',carb:'low',s:{type:'tread',km:6},env:['자유 (실내)','tread','y','홍콩 32°C·습85%+','실내 아무 때나']},
+ 11:{dt:'flight',duty:'HKG-PUS 06:20',carb:'rec',s:{type:'rest',reason:'새벽도착 +DH · 회복'}},
+ 12:{dt:'off',duty:'OFF',carb:'high',s:{type:'threshold'},env:['새벽 05:30~06:30 / 저녁 20+','either','y','낮 32°C','저녁 OK(취침 3h 전)']},
+ 13:{dt:'flight',duty:'야간 BKK',carb:'high',opt:1,s:{type:'easy',km:5},env:['이른 오전 06~07','either','n','낮 31°C','저녁 BKK 비행']},
+ 14:{dt:'layover',duty:'L/O 방콕',carb:'low',s:{type:'tread',km:6},env:['자유 (실내)','tread','y','방콕 33°C·우기','실내 아무 때나']},
+ 15:{dt:'flight',duty:'BKK-ICN 07:40',carb:'rec',s:{type:'rest',reason:'새벽도착 · 회복'}},
+ 16:{dt:'off',duty:'RQOFF',carb:'high',s:{type:'long'},env:['새벽 05~06:30 / 저녁 20+','out','y','낮 30°C 완화','광교호수공원·저녁 가능']},
+ 17:{dt:'off',duty:'OFF',carb:'low',s:{type:'easy',km:5,rec:1},env:['새벽 / 저녁 20+','out','y','낮 29°C','새벽 or 일몰 후']},
+ 18:{dt:'reserve',duty:'RESV',carb:'low',opt:1,s:{type:'easy',km:5,rec:1},env:['새벽 / 저녁 20+','out','y','낮 29°C','콜 없는 시간에']},
+ 19:{dt:'flight',duty:'TSA 왕복',carb:'low',s:{type:'rest',reason:'GMP-TSA-GMP 당일왕복'}},
+ 20:{dt:'flight',duty:'제주 왕복',carb:'low',s:{type:'rest',reason:'제주 왕복 · 21:10 도착'}},
+ 21:{dt:'flight',duty:'야간 NRT',carb:'high',s:{type:'easy',km:5},env:['오전 06~08','out','n','낮 30°C','저녁 NRT 비행']},
+ 22:{dt:'flight',duty:'NRT-ICN 00:25',carb:'rec',s:{type:'rest',reason:'새벽도착 · 회복'}},
+ 23:{dt:'off',duty:'OFF',carb:'high',s:{type:'interval',reps:5},env:['새벽 05:30~ / 저녁 20+','either','y','낮 30°C','저녁 OK · 다음날 OFF']},
+ 24:{dt:'off',duty:'OFF',carb:'low',s:{type:'easy',km:6,rec:1},env:['새벽 / 저녁 20+','out','y','낮 30°C','새벽 or 일몰 후']},
+ 25:{dt:'off',duty:'OFF',carb:'high',s:{type:'long'},env:['새벽 05~06:30','out','n','낮 30°C','다음날 이른 show-up→새벽']},
+ 26:{dt:'flight',duty:'HSG 왕복',carb:'low',s:{type:'rest',reason:'사가 왕복 · 06:30 show'}},
+ 27:{dt:'flight',duty:'FLT ×3',carb:'high',s:{type:'rest',reason:'GMP-CJU-FUK-TAE → 대구 L/O'}},
+ 28:{dt:'flight',duty:'NRT 왕복+DH',carb:'low',s:{type:'rest',reason:'TAE-NRT-TAE → 김포'}},
+ 29:{dt:'off',duty:'OFF',carb:'high',s:{type:'threshold'},env:['새벽 05:30~06:30','either','n','낮 30°C','다음날 이른 show-up→새벽']},
+ 30:{dt:'flight',duty:'FLT ×5',carb:'high',s:{type:'rest',reason:'5섹터 빡센 날 · 회복'}},
+ 31:{dt:'flight',duty:'야간 DAD',carb:'high',s:{type:'easy',km:5},env:['오전 06~08','out','n','낮 30°C','저녁 DAD 비행']},
+};
+const WEEKS=[{l:'1주',r:'8/1',days:[1]},{l:'2주',r:'8/2–8',days:[2,3,4,5,6,7,8]},{l:'3주',r:'8/9–15',days:[9,10,11,12,13,14,15]},{l:'4주',r:'8/16–22',days:[16,17,18,19,20,21,22]},{l:'5주',r:'8/23–29',days:[23,24,25,26,27,28,29]},{l:'6주',r:'8/30–31',days:[30,31]}];
+
+/* ---------- render helpers ---------- */
+function envHTML(env){
+  if(!env) return '';
+  const [t,place,eve,heat,note]=env;
+  const pcls={out:'p-out',tread:'p-tread',either:'p-either'}[place];
+  const eveTxt = eve==='y'?'저녁 가능':eve==='n'?'저녁 불가':'';
+  return `<div class="env"><span class="t">${t}</span>${eveTxt?`<span class="t">${eveTxt}</span>`:''}<span class="${pcls}">${place==='out'?'야외':place==='tread'?'트레드밀':'야외/실내'}</span><span class="h">● ${heat}</span></div><div class="muted" style="margin:-4px 0 8px;font-size:11px">${note}</div>`;
+}
+function sessHTML(day, n){
+  const b=build(P, day.s);
+  if(b.kind==='rest'){
+    return `<div class="sess k-rest"><div class="rest-line"><b>휴식 / 회복</b> · ${b.reason}</div>${WALKOK.has(n)?'<div style="margin-top:6px"><span class="chip walk">걷기 옵션</span></div>':''}<div class="nut ${day.carb==='high'?'high':'low'}"><span class="nn">${NUT[day.carb]}</span></div></div>`;
+  }
+  const rows=b.bd.map(([l,v])=>`<div class="bd"><span class="l">${l}</span><span class="v">${v}</span></div>`).join('');
+  return `<div class="sess k-${b.kind}"><div class="sess-head"><span class="sess-tag">${b.head}${day.opt?' <span class="chip" style="background:var(--qual-bg);color:var(--qual)">선택</span>':''}</span><span class="sess-meta">${b.meta}</span></div>${envHTML(day.env)}${rows}<div class="nut ${day.carb==='high'?'high':'low'}"><span class="nn">${NUT[day.carb]}</span></div></div>`;
+}
+function dutyStrip(day){ return `<span class="strip ${day.dt}"><i></i>${day.duty}</span>`; }
+
+/* ---------- current day ---------- */
+function todayN(){
+  const d=new Date();
+  if(d.getFullYear()===2026 && d.getMonth()===7) return d.getDate();
+  return 7; // fallback demo day
+}
+function fmtToday(){
+  const d=new Date(); const wd=DOW[d.getDay()];
+  return `${d.getMonth()+1}/${d.getDate()} (${wd})`;
+}
+
+/* ---------- views ---------- */
+function renderToday(){
+  const n=todayN(); const day=PLAN[n];
+  const dow=DOW[new Date(2026,7,n).getDay()];
+  let html=`<div class="card"><h3>오늘 · 8/${n} (${dow})</h3><div style="margin-bottom:10px">${dutyStrip(day)} <span class="chip ${day.carb==='high'?'high':'low'}" style="margin-left:6px">${day.carb==='high'?'고탄수':'저탄수'}</span></div>${sessHTML(day,n)}</div>`;
+  // quick zones
+  const z=zones(P);
+  html+=`<div class="card"><h3>내 심박 존 (AT ${P.atHr} · AnT ${P.antHr})</h3>`+z.map(x=>`<div class="zone"><span class="zn">${x.n}</span><span class="bar" style="background:${x.c};width:${x.w}%"></span></div><div class="muted" style="margin:-4px 0 4px 106px;font-size:11px">${x.v} bpm · ${x.d}</div>`).join('')+`</div>`;
+  document.getElementById('tab-today').innerHTML=html;
+}
+function renderWeek(){
+  const cur=todayN();
+  let wi=WEEKS.findIndex(w=>w.days.includes(cur)); if(wi<0)wi=1;
+  const nav=`<div class="wk-nav">${WEEKS.map((w,i)=>`<button class="${i===wi?'on':''}" data-wk="${i}">${w.l} · ${w.r}</button>`).join('')}</div>`;
+  const body=WEEKS[wi].days.map(n=>{const day=PLAN[n];const dow=DOW[new Date(2026,7,n).getDay()];
+    return `<div class="daycard ${n===cur?'today':''}"><div class="dh"><span class="dn">${n}<span class="dw">${dow}</span></span>${dutyStrip(day)}<span class="chip ${day.carb==='high'?'high':'low'}">${day.carb==='high'?'고탄':'저탄'}</span>${WALKOK.has(n)?'<span class="chip walk">걷기</span>':''}</div>${sessHTML(day,n)}</div>`;
+  }).join('');
+  document.getElementById('tab-week').innerHTML=`<div class="card" style="padding:12px 12px 4px">${nav}</div>${body}`;
+  document.querySelectorAll('[data-wk]').forEach(b=>b.onclick=()=>{renderWeekAt(+b.dataset.wk);});
+}
+function renderWeekAt(wi){
+  const cur=todayN();
+  const nav=`<div class="wk-nav">${WEEKS.map((w,i)=>`<button class="${i===wi?'on':''}" data-wk="${i}">${w.l} · ${w.r}</button>`).join('')}</div>`;
+  const body=WEEKS[wi].days.map(n=>{const day=PLAN[n];const dow=DOW[new Date(2026,7,n).getDay()];
+    return `<div class="daycard ${n===cur?'today':''}"><div class="dh"><span class="dn">${n}<span class="dw">${dow}</span></span>${dutyStrip(day)}<span class="chip ${day.carb==='high'?'high':'low'}">${day.carb==='high'?'고탄':'저탄'}</span>${WALKOK.has(n)?'<span class="chip walk">걷기</span>':''}</div>${sessHTML(day,n)}</div>`;
+  }).join('');
+  document.getElementById('tab-week').innerHTML=`<div class="card" style="padding:12px 12px 4px">${nav}</div>${body}`;
+  document.querySelectorAll('[data-wk]').forEach(b=>b.onclick=()=>renderWeekAt(+b.dataset.wk));
+}
+function renderCalc(){
+  const z=zones(P);
+  const zh=z.map(x=>`<div class="zone"><span class="zn">${x.n}</span><span class="zv">${x.v} bpm</span></div>`).join('');
+  const pz=[['이지',P.easy],['롱런',P.long],['임계',P.threshold],['인터벌',P.interval]].map(([n,pr])=>
+    `<div class="zone"><span class="zn">${n}</span><span class="zv">${paceRange(pr)} · ${kmhRange(pr)}</span></div>`).join('');
+  document.getElementById('tab-calc').innerHTML=`
+   <div class="card"><h2>페이스 → 러닝머신 변환</h2>
+     <div class="row"><div class="fld"><label>페이스 (m:ss /km)</label><input id="cp" value="6:00" inputmode="numeric"></div>
+     <div class="fld"><label>= 러닝머신 속도</label><input id="ck" readonly></div></div>
+     <h3 style="margin-top:6px">거리 → 시간 환산</h3>
+     <div class="split" id="csplit"></div>
+   </div>
+   <div class="card"><h2>내 존 · 페이스 (프로필 기반)</h2><h3>심박</h3>${zh}<h3 style="margin-top:12px">페이스 / 러닝머신</h3>${pz}
+     <div class="muted" style="margin-top:10px">값은 설정 탭에서 캘리브레이션 → 전 화면 자동 반영.</div></div>`;
+  const cp=document.getElementById('cp'), ck=document.getElementById('ck');
+  function upd(){ const m=cp.value.split(':'); const sec=(+m[0])*60+(+(m[1]||0)); if(!sec){ck.value='—';return;} ck.value=kmh(sec)+' km/h';
+    document.getElementById('csplit').innerHTML=[['100m',100],['300m',300],['400m',400],['600m',600],['1km',1000],['자유',null]].filter(x=>x[1]).map(([lbl,mtr])=>`<div class="s"><div class="sd">${lbl}</div><div class="sv">${distTime(mtr,sec)}</div></div>`).join(''); }
+  cp.oninput=upd; upd();
+}
+function renderSettings(){
+  const f=(id,lbl,val,ph)=>`<div class="fld"><label>${lbl}</label><input id="${id}" value="${val}" inputmode="numeric" placeholder="${ph||''}"></div>`;
+  const fp=(id,lbl,pr)=>`<div class="fld"><label>${lbl} (m:ss~m:ss)</label><input id="${id}" value="${pace(pr[0])}~${pace(pr[1])}"></div>`;
+  document.getElementById('tab-set').innerHTML=`
+    <div class="card"><h2>신체 · 체중</h2><div class="row">${f('heightCm','키(cm)',P.heightCm)}${f('weightKg','체중(kg)',P.weightKg)}${f('targetKg','목표(kg)',P.targetKg)}</div></div>
+    <div class="card"><h2>심박 (실측 캘리브레이션)</h2><div class="row">${f('restHr','안정',P.restHr)}${f('maxHr','최대',P.maxHr)}${f('atHr','AT(유산소역치)',P.atHr)}${f('antHr','AnT(무산소역치)',P.antHr)}${f('cadence','목표 케이던스',P.cadence)}</div></div>
+    <div class="card"><h2>페이스 존 (sec 자동환산)</h2><div class="row">${fp('p_easy','이지',P.easy)}${fp('p_recovery','회복',P.recovery)}</div><div class="row">${fp('p_long','롱런',P.long)}${fp('p_threshold','임계',P.threshold)}</div><div class="row">${fp('p_interval','인터벌',P.interval)}</div></div>
+    <div class="card"><h2>칼로리</h2><div class="row">${f('tdee','유지(TDEE)',P.tdee)}${f('intake','섭취 목표',P.intake)}</div></div>
+    <button class="btn" id="save">저장</button>
+    <button class="btn sec" id="reset" style="margin-top:8px">기본값 복원</button>
+    <div class="saved" id="savedmsg"></div>`;
+  document.getElementById('save').onclick=()=>{
+    const g=id=>document.getElementById(id).value;
+    const pr=id=>{const [a,b]=g(id).split('~').map(x=>{const m=x.split(':');return (+m[0])*60+(+(m[1]||0));}); return [a,b];};
+    P=Object.assign({},P,{heightCm:+g('heightCm'),weightKg:+g('weightKg'),targetKg:+g('targetKg'),
+      restHr:+g('restHr'),maxHr:+g('maxHr'),atHr:+g('atHr'),antHr:+g('antHr'),cadence:+g('cadence'),
+      tdee:+g('tdee'),intake:+g('intake'),
+      easy:pr('p_easy'),recovery:pr('p_recovery'),long:pr('p_long'),threshold:pr('p_threshold'),interval:pr('p_interval')});
+    saveProfile(P); document.getElementById('savedmsg').textContent='저장됨 · 전 화면 반영';
+    renderToday();
+  };
+  document.getElementById('reset').onclick=()=>{ P={...DEFAULT}; saveProfile(P); renderSettings(); renderToday(); };
+}
+
+/* ---------- tabs ---------- */
+const RENDER={today:renderToday,week:renderWeek,calc:renderCalc,set:renderSettings};
+function show(tab){
+  ['today','week','calc','set'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('hide',t!==tab));
+  document.querySelectorAll('.tb').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
+  RENDER[tab]();
+}
+document.querySelectorAll('.tb').forEach(b=>b.onclick=()=>show(b.dataset.tab));
+document.getElementById('dtag').textContent=fmtToday();
+renderToday();
+
+/* ---------- PWA service worker ---------- */
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+</script>
+</body>
+</html>
