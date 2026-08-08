@@ -106,11 +106,13 @@
   <section id="tab-week" class="hide"></section>
   <section id="tab-calc" class="hide"></section>
   <section id="tab-set" class="hide"></section>
+  <section id="tab-log" class="hide"></section>
 </div>
 
 <nav class="tabbar">
   <button class="tb on" data-tab="today"><span class="ic">◎</span>오늘</button>
   <button class="tb" data-tab="week"><span class="ic">▤</span>주간</button>
+  <button class="tb" data-tab="log"><span class="ic">✎</span>기록</button>
   <button class="tb" data-tab="calc"><span class="ic">∑</span>계산기</button>
   <button class="tb" data-tab="set"><span class="ic">⚙</span>설정</button>
 </nav>
@@ -120,7 +122,7 @@
 const DEFAULT = {
   heightCm:175, weightKg:80.4, targetKg:77,
   restHr:57, maxHr:177, atHr:135, antHr:163, cadence:170,
-  tdee:2500, intake:1950,
+  startKg:81, tdee:2500, intake:1950, lat:37.28, lon:127.01,
   // paces in sec/km [fast, slow]
   easy:[435,470], recovery:[460,490], long:[440,480], threshold:[390,405], interval:[360,370],
   warmup:450, recJog:470, strideKmh:"12~13"
@@ -128,6 +130,11 @@ const DEFAULT = {
 function loadProfile(){ try{ return Object.assign({}, DEFAULT, JSON.parse(localStorage.getItem('shrc_profile')||'{}')); }catch(e){ return {...DEFAULT}; } }
 function saveProfile(p){ localStorage.setItem('shrc_profile', JSON.stringify(p)); }
 let P = loadProfile();
+function loadLogs(){ try{return JSON.parse(localStorage.getItem('shrc_logs')||'[]');}catch(e){return[];} }
+function saveLogs(a){ localStorage.setItem('shrc_logs',JSON.stringify(a)); }
+function loadWeights(){ try{return JSON.parse(localStorage.getItem('shrc_weights')||'[]');}catch(e){return[];} }
+function saveWeights(a){ localStorage.setItem('shrc_weights',JSON.stringify(a)); }
+let LOGS=loadLogs(), WEIGHTS=loadWeights();
 
 /* ---------- calc module ---------- */
 const kmh = sec => (3600/sec).toFixed(1);
@@ -205,41 +212,98 @@ const NUT = {
   rec:'<b>저탄수·회복 · 섭취 ~1,800</b> · 단백질·수분 우선'
 };
 const DOW=['일','월','화','수','목','금','토'];
-const WALKOK=new Set([3,6,8,19,20,27,28]);
-// env: [time, place(out/tread/either), eve(y/n/''), heat, note]
-const PLAN = {
- 1:{dt:'off',duty:'RQOFF',carb:'rec',s:{type:'rest',reason:'완전휴무 (지난주 잔여)'}},
- 2:{dt:'off',duty:'RQOFF',carb:'low',s:{type:'easy',km:6},env:['새벽 05~06 / 저녁 20+','either','y','낮 34°C·열대야','폭염일 새벽/실내']},
- 3:{dt:'flight',duty:'FLT ×3',carb:'high',s:{type:'rest',reason:'GMP-CJU-FUK-TAE → 대구 L/O'}},
- 4:{dt:'layover',duty:'L/O 대구→UBN',carb:'high',opt:1,s:{type:'tread',km:4},env:['오전 (현지)','tread','n','대구 35°C+','저녁 UBN 비행·실내']},
- 5:{dt:'flight',duty:'UBN-TAE 06:20',carb:'rec',s:{type:'rest',reason:'새벽도착 → L/O · 회복'}},
- 6:{dt:'flight',duty:'NRT 왕복+DH',carb:'low',s:{type:'rest',reason:'TAE-NRT-TAE → 김포'}},
- 7:{dt:'off',duty:'OFF',carb:'high',s:{type:'interval',reps:4},env:['새벽 05~05:30 / 저녁(실내)','tread','y','낮 37°C 폭염peak','실내·취침 3h 전']},
- 8:{dt:'flight',duty:'FLT ×3',carb:'high',s:{type:'rest',reason:'GMP-CJU-KIX-PUS → 부산 L/O'}},
- 9:{dt:'layover',duty:'L/O 부산→HKG',carb:'high',s:{type:'easy',km:5,rec:1},env:['오전 06~07','either','n','부산 31°C·습함','저녁 HKG 비행']},
- 10:{dt:'layover',duty:'L/O 홍콩',carb:'low',s:{type:'tread',km:6},env:['자유 (실내)','tread','y','홍콩 32°C·습85%+','실내 아무 때나']},
- 11:{dt:'flight',duty:'HKG-PUS 06:20',carb:'rec',s:{type:'rest',reason:'새벽도착 +DH · 회복'}},
- 12:{dt:'off',duty:'OFF',carb:'high',s:{type:'threshold'},env:['새벽 05:30~06:30 / 저녁 20+','either','y','낮 32°C','저녁 OK(취침 3h 전)']},
- 13:{dt:'flight',duty:'야간 BKK',carb:'high',opt:1,s:{type:'easy',km:5},env:['이른 오전 06~07','either','n','낮 31°C','저녁 BKK 비행']},
- 14:{dt:'layover',duty:'L/O 방콕',carb:'low',s:{type:'tread',km:6},env:['자유 (실내)','tread','y','방콕 33°C·우기','실내 아무 때나']},
- 15:{dt:'flight',duty:'BKK-ICN 07:40',carb:'rec',s:{type:'rest',reason:'새벽도착 · 회복'}},
- 16:{dt:'off',duty:'RQOFF',carb:'high',s:{type:'long'},env:['새벽 05~06:30 / 저녁 20+','out','y','낮 30°C 완화','광교호수공원·저녁 가능']},
- 17:{dt:'off',duty:'OFF',carb:'low',s:{type:'easy',km:5,rec:1},env:['새벽 / 저녁 20+','out','y','낮 29°C','새벽 or 일몰 후']},
- 18:{dt:'reserve',duty:'RESV',carb:'low',opt:1,s:{type:'easy',km:5,rec:1},env:['새벽 / 저녁 20+','out','y','낮 29°C','콜 없는 시간에']},
- 19:{dt:'flight',duty:'TSA 왕복',carb:'low',s:{type:'rest',reason:'GMP-TSA-GMP 당일왕복'}},
- 20:{dt:'flight',duty:'제주 왕복',carb:'low',s:{type:'rest',reason:'제주 왕복 · 21:10 도착'}},
- 21:{dt:'flight',duty:'야간 NRT',carb:'high',s:{type:'easy',km:5},env:['오전 06~08','out','n','낮 30°C','저녁 NRT 비행']},
- 22:{dt:'flight',duty:'NRT-ICN 00:25',carb:'rec',s:{type:'rest',reason:'새벽도착 · 회복'}},
- 23:{dt:'off',duty:'OFF',carb:'high',s:{type:'interval',reps:5},env:['새벽 05:30~ / 저녁 20+','either','y','낮 30°C','저녁 OK · 다음날 OFF']},
- 24:{dt:'off',duty:'OFF',carb:'low',s:{type:'easy',km:6,rec:1},env:['새벽 / 저녁 20+','out','y','낮 30°C','새벽 or 일몰 후']},
- 25:{dt:'off',duty:'OFF',carb:'high',s:{type:'long'},env:['새벽 05~06:30','out','n','낮 30°C','다음날 이른 show-up→새벽']},
- 26:{dt:'flight',duty:'HSG 왕복',carb:'low',s:{type:'rest',reason:'사가 왕복 · 06:30 show'}},
- 27:{dt:'flight',duty:'FLT ×3',carb:'high',s:{type:'rest',reason:'GMP-CJU-FUK-TAE → 대구 L/O'}},
- 28:{dt:'flight',duty:'NRT 왕복+DH',carb:'low',s:{type:'rest',reason:'TAE-NRT-TAE → 김포'}},
- 29:{dt:'off',duty:'OFF',carb:'high',s:{type:'threshold'},env:['새벽 05:30~06:30','either','n','낮 30°C','다음날 이른 show-up→새벽']},
- 30:{dt:'flight',duty:'FLT ×5',carb:'high',s:{type:'rest',reason:'5섹터 빡센 날 · 회복'}},
- 31:{dt:'flight',duty:'야간 DAD',carb:'high',s:{type:'easy',km:5},env:['오전 06~08','out','n','낮 30°C','저녁 DAD 비행']},
-};
+/* ===== Phase 2 · 로스터 → 규칙 엔진 자동 생성 =====
+   로스터 스키마 (일별):
+   { d:일, kind:'off'|'flight'|'layover'|'reserve', label:'표시',
+     sectors:섹터수, layover:'도시', nightDep:'목적지', redeye:1, early:1, coast:1, humid:1,
+     heat:'낮 30°C', hint:'interval'|'threshold'|'long'|'easy'|'easyrec'|'rest', reps:4, opt:1, reason:'휴식사유' } */
+const DEFAULT_ROSTER = { month:'2026-08', days:[
+  {d:1,kind:'off',label:'RQOFF',hint:'rest',reason:'완전휴무 (지난주 잔여)'},
+  {d:2,kind:'off',label:'RQOFF',hint:'easy',heat:'낮 34°C·열대야'},
+  {d:3,kind:'flight',label:'FLT ×3',sectors:3,layover:'대구',reason:'GMP-CJU-FUK-TAE → 대구 L/O'},
+  {d:4,kind:'layover',label:'L/O 대구→UBN',layover:'대구',nightDep:'UBN',heat:'대구 35°C+',opt:1},
+  {d:5,kind:'flight',label:'UBN-TAE 06:20',redeye:1,reason:'새벽도착 → L/O · 회복'},
+  {d:6,kind:'flight',label:'NRT 왕복+DH',sectors:2,reason:'TAE-NRT-TAE → 김포'},
+  {d:7,kind:'off',label:'OFF',hint:'interval',reps:4,heat:'낮 37°C 폭염peak'},
+  {d:8,kind:'flight',label:'FLT ×3',sectors:3,layover:'부산',reason:'GMP-CJU-KIX-PUS → 부산 L/O'},
+  {d:9,kind:'layover',label:'L/O 부산→HKG',layover:'부산',nightDep:'HKG',coast:1,heat:'부산 31°C·습함'},
+  {d:10,kind:'layover',label:'L/O 홍콩',layover:'홍콩',humid:1,heat:'홍콩 32°C·습85%+'},
+  {d:11,kind:'flight',label:'HKG-PUS 06:20',redeye:1,reason:'새벽도착 +DH · 회복'},
+  {d:12,kind:'off',label:'OFF',hint:'threshold',heat:'낮 32°C'},
+  {d:13,kind:'flight',label:'야간 BKK',nightDep:'BKK',heat:'낮 31°C',opt:1},
+  {d:14,kind:'layover',label:'L/O 방콕',layover:'방콕',humid:1,heat:'방콕 33°C·우기'},
+  {d:15,kind:'flight',label:'BKK-ICN 07:40',redeye:1,reason:'새벽도착 · 회복'},
+  {d:16,kind:'off',label:'RQOFF',hint:'long',heat:'낮 30°C 완화'},
+  {d:17,kind:'off',label:'OFF',hint:'easyrec',heat:'낮 29°C'},
+  {d:18,kind:'reserve',label:'RESV',hint:'easyrec',opt:1,heat:'낮 29°C'},
+  {d:19,kind:'flight',label:'TSA 왕복',sectors:2,reason:'GMP-TSA-GMP 당일왕복'},
+  {d:20,kind:'flight',label:'제주 왕복',sectors:2,reason:'제주 왕복 · 21:10 도착'},
+  {d:21,kind:'flight',label:'야간 NRT',nightDep:'NRT',heat:'낮 30°C'},
+  {d:22,kind:'flight',label:'NRT-ICN 00:25',redeye:1,reason:'새벽도착 · 회복'},
+  {d:23,kind:'off',label:'OFF',hint:'interval',reps:5,heat:'낮 30°C'},
+  {d:24,kind:'off',label:'OFF',hint:'easyrec',heat:'낮 30°C'},
+  {d:25,kind:'off',label:'OFF',hint:'long',heat:'낮 30°C'},
+  {d:26,kind:'flight',label:'HSG 왕복',sectors:2,early:1,reason:'사가 왕복 · 06:30 show'},
+  {d:27,kind:'flight',label:'FLT ×3',sectors:3,layover:'대구',reason:'GMP-CJU-FUK-TAE → 대구 L/O'},
+  {d:28,kind:'flight',label:'NRT 왕복+DH',sectors:2,reason:'TAE-NRT-TAE → 김포'},
+  {d:29,kind:'off',label:'OFF',hint:'threshold',heat:'낮 30°C'},
+  {d:30,kind:'flight',label:'FLT ×5',sectors:5,reason:'5섹터 빡센 날 · 회복'},
+  {d:31,kind:'flight',label:'야간 DAD',nightDep:'DAD',heat:'낮 30°C'},
+]};
+
+// 다음날이 이른 근무(early)·레드아이·5섹터면 저녁 퀄리티 금지
+function isHardNext(days,i){ const nx=days[i+1]; return !!(nx && (nx.early||nx.redeye||(nx.sectors&&nx.sectors>=5))); }
+// 단순 왕복·레이오버行 → 걷기 옵션 (레드아이·이른근무·5섹터·야간출발 제외)
+function walkOk(day){ return day.kind==='flight' && !day.redeye && !day.early && !day.nightDep && (day.sectors? day.sectors<=4 : true); }
+function homeEnv(day, hardNext, kind){
+  const heat=day.heat||'낮 30°C', extreme=/37/.test(heat);
+  const quality=(kind==='interval'||kind==='threshold'), long=(kind==='long');
+  let place = quality ? (extreme?'tread':'either') : (long?'out':(/34/.test(heat)?'either':'out'));
+  let eve = (quality||long) ? (hardNext?'n':'y') : 'y';
+  let time, note;
+  if(extreme && quality){ time='새벽 05~05:30 / 저녁(실내)'; note='실내·취침 3h 전'; }
+  else if(quality){ time=hardNext?'새벽 05:30~06:30':'새벽 05:30~ / 저녁 20+'; note=hardNext?'다음날 이른 show-up→새벽':'저녁 OK(취침 3h 전)'; }
+  else if(long){ time=hardNext?'새벽 05~06:30':'새벽 05~06:30 / 저녁 20+'; note=hardNext?'다음날 이른 show-up→새벽':'광교호수공원·저녁 가능'; }
+  else { time='새벽 / 저녁 20+'; note=/34/.test(heat)?'폭염일 새벽/실내':'새벽 or 일몰 후'; }
+  return [time, place, eve, heat, note];
+}
+function genDay(days,i){
+  const day=days[i], hardNext=isHardNext(days,i);
+  const o={ dt:day.kind, duty:day.label, opt:day.opt||0, walk:false };
+  if(day.kind==='off'){
+    const h=day.hint||'easy';
+    if(h==='rest'){ o.carb='rec'; o.s={type:'rest',reason:day.reason||'휴식'}; return o; }
+    if(h==='interval'){ o.s={type:'interval',reps:day.reps||4}; o.carb='high'; }
+    else if(h==='threshold'){ o.s={type:'threshold'}; o.carb='high'; }
+    else if(h==='long'){ o.s={type:'long'}; o.carb='high'; }
+    else if(h==='easyrec'){ o.s={type:'easy',km:5,rec:1}; o.carb='low'; }
+    else { o.s={type:'easy',km:6}; o.carb='low'; }
+    o.env=homeEnv(day,hardNext,o.s.type); return o;
+  }
+  if(day.kind==='reserve'){ o.s={type:'easy',km:5,rec:1}; o.carb='low'; o.env=['새벽 / 저녁 20+','out','y',day.heat||'낮 29°C','대기일 · 콜 없는 시간에']; return o; }
+  if(day.kind==='layover'){
+    if(day.nightDep){
+      if(day.coast){ o.s={type:'easy',km:5,rec:1}; o.env=['오전 06~07','either','n',day.heat||'','저녁 '+day.nightDep+' 비행 · 해안 새벽']; }
+      else { o.s={type:'tread',km:4}; o.env=['오전 (현지)','tread','n',day.heat||'','저녁 '+day.nightDep+' 비행 · 실내']; }
+      o.carb='high'; return o;
+    }
+    o.s={type:'tread',km:6}; o.carb='low'; o.env=['자유 (실내)','tread','y',day.heat||'','실내 아무 때나']; return o;
+  }
+  // flight
+  if(day.nightDep){ o.s={type:'easy',km:5}; o.carb='high'; o.env=['오전 06~08','out','n',day.heat||'낮 30°C','저녁 '+day.nightDep+' 비행 · 오전에']; return o; }
+  o.s={type:'rest',reason:day.reason||day.label}; o.walk=walkOk(day);
+  o.carb = day.redeye?'rec' : (day.sectors&&day.sectors>=3)?'high' : 'low';
+  return o;
+}
+function generatePlan(roster){
+  const days=roster.days.slice().sort((a,b)=>a.d-b.d), plan={};
+  days.forEach((d,i)=>{ plan[d.d]=genDay(days,i); });
+  return plan;
+}
+function loadRoster(){ try{ return JSON.parse(localStorage.getItem('shrc_roster')||'null')||DEFAULT_ROSTER; }catch(e){ return DEFAULT_ROSTER; } }
+let ROSTER = loadRoster();
+let PLAN = generatePlan(ROSTER);
+function regen(){ PLAN=generatePlan(ROSTER); renderToday(); }
 const WEEKS=[{l:'1주',r:'8/1',days:[1]},{l:'2주',r:'8/2–8',days:[2,3,4,5,6,7,8]},{l:'3주',r:'8/9–15',days:[9,10,11,12,13,14,15]},{l:'4주',r:'8/16–22',days:[16,17,18,19,20,21,22]},{l:'5주',r:'8/23–29',days:[23,24,25,26,27,28,29]},{l:'6주',r:'8/30–31',days:[30,31]}];
 
 /* ---------- render helpers ---------- */
@@ -253,7 +317,7 @@ function envHTML(env){
 function sessHTML(day, n){
   const b=build(P, day.s);
   if(b.kind==='rest'){
-    return `<div class="sess k-rest"><div class="rest-line"><b>휴식 / 회복</b> · ${b.reason}</div>${WALKOK.has(n)?'<div style="margin-top:6px"><span class="chip walk">걷기 옵션</span></div>':''}<div class="nut ${day.carb==='high'?'high':'low'}"><span class="nn">${NUT[day.carb]}</span></div></div>`;
+    return `<div class="sess k-rest"><div class="rest-line"><b>휴식 / 회복</b> · ${b.reason}</div>${day.walk?'<div style="margin-top:6px"><span class="chip walk">걷기 옵션</span></div>':''}<div class="nut ${day.carb==='high'?'high':'low'}"><span class="nn">${NUT[day.carb]}</span></div></div>`;
   }
   const rows=b.bd.map(([l,v])=>`<div class="bd"><span class="l">${l}</span><span class="v">${v}</span></div>`).join('');
   return `<div class="sess k-${b.kind}"><div class="sess-head"><span class="sess-tag">${b.head}${day.opt?' <span class="chip" style="background:var(--qual-bg);color:var(--qual)">선택</span>':''}</span><span class="sess-meta">${b.meta}</span></div>${envHTML(day.env)}${rows}<div class="nut ${day.carb==='high'?'high':'low'}"><span class="nn">${NUT[day.carb]}</span></div></div>`;
@@ -286,7 +350,7 @@ function renderWeek(){
   let wi=WEEKS.findIndex(w=>w.days.includes(cur)); if(wi<0)wi=1;
   const nav=`<div class="wk-nav">${WEEKS.map((w,i)=>`<button class="${i===wi?'on':''}" data-wk="${i}">${w.l} · ${w.r}</button>`).join('')}</div>`;
   const body=WEEKS[wi].days.map(n=>{const day=PLAN[n];const dow=DOW[new Date(2026,7,n).getDay()];
-    return `<div class="daycard ${n===cur?'today':''}"><div class="dh"><span class="dn">${n}<span class="dw">${dow}</span></span>${dutyStrip(day)}<span class="chip ${day.carb==='high'?'high':'low'}">${day.carb==='high'?'고탄':'저탄'}</span>${WALKOK.has(n)?'<span class="chip walk">걷기</span>':''}</div>${sessHTML(day,n)}</div>`;
+    return `<div class="daycard ${n===cur?'today':''}"><div class="dh"><span class="dn">${n}<span class="dw">${dow}</span></span>${dutyStrip(day)}<span class="chip ${day.carb==='high'?'high':'low'}">${day.carb==='high'?'고탄':'저탄'}</span>${day.walk?'<span class="chip walk">걷기</span>':''}</div>${sessHTML(day,n)}</div>`;
   }).join('');
   document.getElementById('tab-week').innerHTML=`<div class="card" style="padding:12px 12px 4px">${nav}</div>${body}`;
   document.querySelectorAll('[data-wk]').forEach(b=>b.onclick=()=>{renderWeekAt(+b.dataset.wk);});
@@ -295,7 +359,7 @@ function renderWeekAt(wi){
   const cur=todayN();
   const nav=`<div class="wk-nav">${WEEKS.map((w,i)=>`<button class="${i===wi?'on':''}" data-wk="${i}">${w.l} · ${w.r}</button>`).join('')}</div>`;
   const body=WEEKS[wi].days.map(n=>{const day=PLAN[n];const dow=DOW[new Date(2026,7,n).getDay()];
-    return `<div class="daycard ${n===cur?'today':''}"><div class="dh"><span class="dn">${n}<span class="dw">${dow}</span></span>${dutyStrip(day)}<span class="chip ${day.carb==='high'?'high':'low'}">${day.carb==='high'?'고탄':'저탄'}</span>${WALKOK.has(n)?'<span class="chip walk">걷기</span>':''}</div>${sessHTML(day,n)}</div>`;
+    return `<div class="daycard ${n===cur?'today':''}"><div class="dh"><span class="dn">${n}<span class="dw">${dow}</span></span>${dutyStrip(day)}<span class="chip ${day.carb==='high'?'high':'low'}">${day.carb==='high'?'고탄':'저탄'}</span>${day.walk?'<span class="chip walk">걷기</span>':''}</div>${sessHTML(day,n)}</div>`;
   }).join('');
   document.getElementById('tab-week').innerHTML=`<div class="card" style="padding:12px 12px 4px">${nav}</div>${body}`;
   document.querySelectorAll('[data-wk]').forEach(b=>b.onclick=()=>renderWeekAt(+b.dataset.wk));
@@ -327,6 +391,15 @@ function renderSettings(){
     <div class="card"><h2>심박 (실측 캘리브레이션)</h2><div class="row">${f('restHr','안정',P.restHr)}${f('maxHr','최대',P.maxHr)}${f('atHr','AT(유산소역치)',P.atHr)}${f('antHr','AnT(무산소역치)',P.antHr)}${f('cadence','목표 케이던스',P.cadence)}</div></div>
     <div class="card"><h2>페이스 존 (sec 자동환산)</h2><div class="row">${fp('p_easy','이지',P.easy)}${fp('p_recovery','회복',P.recovery)}</div><div class="row">${fp('p_long','롱런',P.long)}${fp('p_threshold','임계',P.threshold)}</div><div class="row">${fp('p_interval','인터벌',P.interval)}</div></div>
     <div class="card"><h2>칼로리</h2><div class="row">${f('tdee','유지(TDEE)',P.tdee)}${f('intake','섭취 목표',P.intake)}</div></div>
+    <div class="card"><h2>로스터 (JSON) · 자동 생성</h2>
+      <div class="muted" style="margin-bottom:8px">로스터를 넣으면 세션·탄수·시간대·야외/실내·저녁/걷기 옵션이 규칙 엔진으로 <b>자동 생성</b>돼. (hint: interval·threshold·long·easy·easyrec)</div>
+      <textarea id="rosterjson" spellcheck="false" style="width:100%;height:150px;font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:8px;padding:10px;background:#fff;color:var(--ink);resize:vertical"></textarea>
+      <button class="btn" id="applyroster" style="margin-top:8px">적용 &amp; 재생성</button>
+      <button class="btn sec" id="resetroster" style="margin-top:8px">기본 로스터 복원</button>
+      <button class="btn sec" id="wxbtn" style="margin-top:8px">날씨 불러오기 (수원) → heat 자동</button>
+      <div class="saved" id="wxmsg"></div>
+      <div class="saved" id="rostermsg"></div>
+    </div>
     <button class="btn" id="save">저장</button>
     <button class="btn sec" id="reset" style="margin-top:8px">기본값 복원</button>
     <div class="saved" id="savedmsg"></div>`;
@@ -341,12 +414,89 @@ function renderSettings(){
     renderToday();
   };
   document.getElementById('reset').onclick=()=>{ P={...DEFAULT}; saveProfile(P); renderSettings(); renderToday(); };
+  document.getElementById('rosterjson').value = JSON.stringify(ROSTER, null, 1);
+  document.getElementById('applyroster').onclick=()=>{
+    const msg=document.getElementById('rostermsg');
+    try{
+      const r=JSON.parse(document.getElementById('rosterjson').value);
+      if(!r || !Array.isArray(r.days)) throw new Error('days[] 없음');
+      ROSTER=r; localStorage.setItem('shrc_roster', JSON.stringify(r)); regen();
+      msg.style.color='var(--easy)'; msg.textContent='적용됨 · 플랜 재생성 (오늘/주간 반영)';
+    }catch(e){ msg.style.color='var(--heat)'; msg.textContent='JSON 오류 — 형식 확인 ('+e.message+')'; }
+  };
+  document.getElementById('resetroster').onclick=()=>{ ROSTER=DEFAULT_ROSTER; localStorage.removeItem('shrc_roster'); regen(); renderSettings(); };
+  document.getElementById('wxbtn').onclick=fetchWeather;
+}
+
+/* ---------- Phase 3 · log / weight / calibration ---------- */
+function sparkline(pts,w,h){
+  if(pts.length<2) return '<div class="muted" style="text-align:center;padding:20px 0">체중 2개 이상 기록하면 추세 그래프</div>';
+  const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
+  const mnx=Math.min(...xs),mxx=Math.max(...xs),mny=Math.min(...ys),mxy=Math.max(...ys);
+  const sx=x=>mxx===mnx?w/2:((x-mnx)/(mxx-mnx)*(w-14)+7);
+  const sy=y=>mxy===mny?h/2:(h-8-((y-mny)/(mxy-mny)*(h-16)));
+  const d=pts.map((p,i)=>(i?'L':'M')+sx(p.x).toFixed(1)+' '+sy(p.y).toFixed(1)).join(' ');
+  const dots=pts.map(p=>`<circle cx="${sx(p.x).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="2.6" fill="#1F8A9B"/>`).join('');
+  return `<svg width="100%" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="display:block;height:${h}px"><path d="${d}" fill="none" stroke="#1F8A9B" stroke-width="2"/>${dots}</svg>`;
+}
+const daysBetween=(a,b)=>(new Date(b)-new Date(a))/86400000;
+const TYNAME={easy:'이지',tread:'트레드밀',long:'롱런',threshold:'임계',interval:'인터벌',walk:'걷기'};
+function renderLog(){
+  const today=new Date().toISOString().slice(0,10);
+  const W=WEIGHTS.slice().sort((a,b)=>a.date<b.date?-1:1);
+  const cur=W.length?W[W.length-1].kg:P.startKg, lost=P.startKg-cur, toGo=cur-P.targetKg;
+  let rate='—', sug='';
+  if(W.length>=2){ const span=daysBetween(W[0].date,W[W.length-1].date)||1; const r=(W[0].kg-W[W.length-1].kg)/span*7;
+    rate=(r>=0?'-':'+')+Math.abs(r).toFixed(2)+'kg/주';
+    sug = Math.abs(r)<0.15 ? '정체 시 섭취 100~150↓' : r>0.9 ? '너무 빠름 — 섭취 조금↑' : '순조 — 페이스 유지';
+  }
+  const spark=sparkline(W.map(p=>({x:new Date(p.date).getTime(),y:p.kg})),300,70);
+  let html=`<div class="card"><h2>체중</h2>
+    <div class="split" style="margin-bottom:10px"><div class="s"><div class="sd">현재</div><div class="sv">${cur.toFixed(1)}</div></div><div class="s"><div class="sd">감량</div><div class="sv">${lost>=0?'-':'+'}${Math.abs(lost).toFixed(1)}</div></div><div class="s"><div class="sd">목표까지</div><div class="sv">${toGo.toFixed(1)}</div></div></div>
+    <div style="border:1px solid var(--line-soft);border-radius:8px;padding:8px;margin-bottom:8px">${spark}</div>
+    <div class="muted" style="margin-bottom:10px">시작 ${P.startKg} → 목표 ${P.targetKg} · 주간 <b style="color:var(--ink)">${rate}</b>${sug?' · '+sug:''}</div>
+    <div class="row"><div class="fld" style="max-width:140px"><label>날짜</label><input id="wdate" value="${today}"></div><div class="fld" style="max-width:110px"><label>체중(kg)</label><input id="wkg" inputmode="decimal" placeholder="${cur.toFixed(1)}"></div><div class="fld" style="min-width:78px;display:flex;align-items:flex-end"><button class="btn" id="waddbtn" style="margin:0">기록</button></div></div></div>`;
+  // calibration from easy logs
+  const easy=LOGS.filter(l=>['easy','tread'].includes(l.type)&&l.avgHr).slice(-5);
+  let cal='';
+  if(easy.length){ const avg=Math.round(easy.reduce((s,l)=>s+l.avgHr,0)/easy.length);
+    cal = avg>P.atHr
+      ? `<div class="nut high"><span class="nn">최근 이지런 평균 <b>${avg}bpm</b> — AT(${P.atHr}) 초과 경향 · <b>더 느리게</b>(≤${P.atHr-1})</span></div>`
+      : `<div class="nut low"><span class="nn">최근 이지런 평균 <b>${avg}bpm</b> — 존2 잘 지킴 (AT ${P.atHr} 이하) ✓</span></div>`;
+  }
+  const maxObs=Math.max(0,...LOGS.map(l=>l.maxHr||0));
+  const cal2=maxObs>P.maxHr?`<div class="nut high"><span class="nn">관측 최대심박 <b>${maxObs}</b> &gt; 설정(${P.maxHr}) — 설정에서 최대심박 상향 고려</span></div>`:'';
+  const recent=LOGS.slice().sort((a,b)=>a.date<b.date?1:-1).slice(0,8);
+  const list=recent.length?recent.map(l=>`<div class="zone"><span class="zn">${l.date.slice(5)} ${TYNAME[l.type]||l.type}</span><span class="zv">${l.km||'-'}km·${l.min||'-'}분·${l.avgHr||'-'}bpm·${l.cadence||'-'}spm·${l.kcal||'-'}k</span></div>`).join(''):'<div class="muted">기록 없음</div>';
+  html+=`<div class="card"><h2>러닝 로그 · 자동 보정</h2>
+    <div class="row"><div class="fld" style="max-width:130px"><label>날짜</label><input id="ldate" value="${today}"></div><div class="fld"><label>종류</label><input id="ltype" value="easy" placeholder="easy/tread/long/threshold/interval/walk"></div></div>
+    <div class="row"><div class="fld"><label>거리(km)</label><input id="lkm" inputmode="decimal"></div><div class="fld"><label>시간(분)</label><input id="lmin" inputmode="decimal"></div></div>
+    <div class="row"><div class="fld"><label>평균HR</label><input id="lhr" inputmode="numeric"></div><div class="fld"><label>최대HR</label><input id="lmhr" inputmode="numeric"></div><div class="fld"><label>케이던스</label><input id="lcad" inputmode="numeric"></div><div class="fld"><label>kcal</label><input id="lkcal" inputmode="numeric"></div></div>
+    <button class="btn" id="laddbtn">기록 추가</button>${cal}${cal2}
+    <h3 style="margin-top:12px">최근 기록</h3>${list}</div>`;
+  document.getElementById('tab-log').innerHTML=html;
+  document.getElementById('waddbtn').onclick=()=>{ const kg=parseFloat(document.getElementById('wkg').value), dt=document.getElementById('wdate').value; if(!kg||!dt)return; WEIGHTS=WEIGHTS.filter(w=>w.date!==dt); WEIGHTS.push({date:dt,kg}); saveWeights(WEIGHTS); renderLog(); };
+  document.getElementById('laddbtn').onclick=()=>{ const g=id=>document.getElementById(id).value; const e={date:g('ldate'),type:g('ltype'),km:parseFloat(g('lkm'))||null,min:parseFloat(g('lmin'))||null,avgHr:parseInt(g('lhr'))||null,maxHr:parseInt(g('lmhr'))||null,cadence:parseInt(g('lcad'))||null,kcal:parseInt(g('lkcal'))||null}; if(!e.date)return; LOGS.push(e); saveLogs(LOGS); renderLog(); };
+}
+
+/* ---------- weather (Open-Meteo · no key) ---------- */
+async function fetchWeather(){
+  const msg=document.getElementById('wxmsg'); if(msg){msg.style.color='var(--ink-soft)';msg.textContent='불러오는 중…';}
+  try{
+    const url=`https://api.open-meteo.com/v1/forecast?latitude=${P.lat||37.28}&longitude=${P.lon||127.01}&daily=temperature_2m_max&timezone=Asia%2FSeoul&forecast_days=16`;
+    const j=await (await fetch(url)).json();
+    const map={}; (j.daily.time||[]).forEach((t,i)=>map[t]=Math.round(j.daily.temperature_2m_max[i]));
+    let n=0; ROSTER.days.forEach(d=>{ const iso=`${ROSTER.month}-${String(d.d).padStart(2,'0')}`; if(map[iso]!=null){ d.heat=`낮 ${map[iso]}°C`; n++; } });
+    localStorage.setItem('shrc_roster',JSON.stringify(ROSTER)); regen();
+    const ta=document.getElementById('rosterjson'); if(ta) ta.value=JSON.stringify(ROSTER,null,1);
+    if(msg){msg.style.color='var(--easy)';msg.textContent=`날씨 ${n}일 반영 (수원 최고기온)`;}
+  }catch(e){ if(msg){msg.style.color='var(--heat)';msg.textContent='실패 — 오프라인/차단 (heat 수동 유지)';} }
 }
 
 /* ---------- tabs ---------- */
-const RENDER={today:renderToday,week:renderWeek,calc:renderCalc,set:renderSettings};
+const RENDER={today:renderToday,week:renderWeek,log:renderLog,calc:renderCalc,set:renderSettings};
 function show(tab){
-  ['today','week','calc','set'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('hide',t!==tab));
+  ['today','week','log','calc','set'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('hide',t!==tab));
   document.querySelectorAll('.tb').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
   RENDER[tab]();
 }
