@@ -1,5 +1,5 @@
 /* SH Running Coach · minimal offline app-shell cache */
-const CACHE = 'shrc-v3';
+const CACHE = 'shrc-v4';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
