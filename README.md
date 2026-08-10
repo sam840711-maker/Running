@@ -1,6 +1,6 @@
-# SH Running Coach — v4 (다크모드 · 훈련부하 · 세션 타이머)
+# SH Running Coach — v6 (근력 통합 · 다크모드 · 훈련부하 · 세션 타이머)
 
-비행 로스터 기반 개인 러닝·영양 코치 PWA. **로스터 JSON → 규칙 엔진으로 훈련·영양 플랜 자동 생성.**
+비행 로스터 기반 개인 러닝·영양 코치 PWA. **로스터 JSON → 규칙 엔진으로 훈련·영양·근력 플랜 자동 생성.**
 
 ## 동작 (P0 + P2)
 - **오늘 / 주간 / 계산기 / 설정** 4개 탭 (하단 탭바)
@@ -28,6 +28,18 @@
 - **강도 분포 80/20** — 최근 28일 이지 vs 고강도 시간 비율. 이지 75% 미만이면 "더 느리게" 경고 (이지런 과속 습관 교정용)
 - **주간 요약** — 최근 7일 거리·시간·세션 수·소모 kcal
 
+## v6 신규 · 근력(플랜핏) 통합
+- **주 2회 자동 배치** — 확정된 플랜핏 커스텀 플랜을 오늘/주간에 자동 표시
+  - **Day A · 상체 우세(30분, 플랜핏 플랜 1)**: 트위스트슈퍼맨·와이드푸쉬업·에어레터럴·와이드스쿼트 2세트·카프·사이드플랭크
+  - **Day B · 하체 우세(40분, 플랜핏 플랜 2)**: 밴드글루트브릿지·사이드킥백·레그컬·카프·와이드푸쉬업·데드벅
+- **배치 규칙 엔진** — 홈데이(off/reserve)에만. **러닝 먼저 → 근력.**
+  - **B(하체)**: 전날·다음날·당일 퀄리티(인터벌/임계)·롱런 없는 날에만 (다리 보호)
+  - **A(상체)**: 배치 자유(롱런일 제외, 이지·휴식일 우선)
+  - 홈데이 부족한 주는 자동 1회로 축소
+- **수동 override** — 로스터 일별 `"strength":"A"|"B"|"skip"` → 자동배치보다 우선
+- **훈련 부하 반영** — 근력 로그(type `strength`)는 ACWR에 약하게(×0.6) 반영, 러닝 80/20 분포에선 제외
+- 종목/세트는 실제 운동은 **플랜핏 앱**에서 수행, 본 앱은 *어느 날 A/B를 할지* 배치·규칙만 관리
+
 ## 참고한 상용앱 개념
 - Garmin: Acute/Chronic Training Load, Load Ratio(1.5↑ 부상위험), Training Status
 - Strava: Relative Effort(3주 롤링 평균 대비 주간 부하 밴드)
@@ -44,7 +56,7 @@
 ```
 - `kind`: off · flight · layover · reserve
 - `hint`(off/reserve): interval · threshold · long · easy · easyrec · rest  (없으면 easy)
-- 플래그: `sectors` · `nightDep`(야간 출발지) · `redeye` · `early`(다음날 이른 show-up) · `coast`(해안 레이오버) · `humid` · `heat` · `opt`(선택 세션) · `reps`(인터벌 반복수) · `reason`(휴식 사유)
+- 플래그: `sectors` · `nightDep`(야간 출발지) · `redeye` · `early`(다음날 이른 show-up) · `coast`(해안 레이오버) · `humid` · `heat` · `opt`(선택 세션) · `reps`(인터벌 반복수) · `reason`(휴식 사유) · `strength`("A"·"B"·"skip" 근력 수동 지정)
 
 ## 규칙 요약 (engine)
 - **세션**: off→hint / layover(야간출발)→해안이면 이지·아니면 트레드밀 / layover(종일)→트레드밀 / flight(야간출발)→오전 이지 / flight(레드아이·5섹터·3섹터)→휴식
@@ -54,7 +66,7 @@
 
 ## 배포 (github.io)
 `index.html`·`manifest.json`·`sw.js` push → Settings→Pages→브랜치 → 폰에서 "홈 화면에 추가".
-> 업데이트 시 `sw.js`의 `CACHE`(현재 `shrc-v4`)를 올려야 새 버전이 강제 적용됨.
+> 업데이트 시 `sw.js`의 `CACHE`(현재 `shrc-v6`)를 올려야 새 버전이 강제 적용됨.
 
 ## 다음 (Phase 3~)
 - 운동 로그 입력 → 존·페이스 자동 보정, 체중 추세·조정 제안
