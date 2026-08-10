@@ -99,7 +99,7 @@
 <body>
 <div class="app">
   <div class="topbar">
-    <div class="brand">SH Running Coach<span class="en">MVP</span></div>
+    <div class="brand">SH Running Coach<span class="en" id="verlabel">v—</span></div>
     <div class="dtag" id="dtag">—</div>
   </div>
 
@@ -119,6 +119,10 @@
 </nav>
 
 <script>
+/* ---------- app meta ---------- */
+const APP_VERSION='5.0';
+const APP_BUILD='2026-08-10';
+
 /* ---------- storage ---------- */
 const DEFAULT = {
   heightCm:175, weightKg:80.4, targetKg:77,
@@ -160,7 +164,7 @@ function easyRun(p, km, rec){
   const avg=(pr[0]+pr[1])/2, mins=Math.round(km*avg/60)+4;
   return {kind:'easy', head:'이지런 · 존2'+(rec?' (회복)':''), meta:`${km}km · 약 ${mins}분`, bd:[
     ['웜업','첫 1km 걷기→조깅 점진 · 케이던스 '+p.cadence],
-    ['메인',`${km}km @ <b>${paceRange(pr)}</b> (러닝머신 <b>${kmhRange(pr)}</b>) · 심박 <b>≤${p.atHr-1}</b> · 대화 가능`],
+    ['메인',`${km}km @ <b>${paceRange(pr)}</b> (러닝머신 <b>${kmhRange(pr)}</b>) · <b>약 ${distTime(km*1000,pr[0])}~${distTime(km*1000,pr[1])}</b> · 심박 <b>≤${p.atHr-1}</b> · 대화 가능`],
     ['쿨다운','걷기 3~5분 + 정적 스트레칭'],
   ]};
 }
@@ -168,14 +172,14 @@ function treadRun(p, km){
   const pr=p.easy, avg=(pr[0]+pr[1])/2, mins=Math.round(km*avg/60)+6;
   return {kind:'tread', head:'트레드밀 이지 · 존2', meta:`${km}km · 약 ${mins}분`, bd:[
     ['웜업','걷기 3분 (5.5~6.0 km/h) · 케이던스 '+p.cadence],
-    ['메인',`${km}km @ <b>${paceRange(pr)}</b> (<b>${kmhRange(pr)}</b>) · 경사 1% · 심박 <b>≤${p.atHr-1}</b>`],
+    ['메인',`${km}km @ <b>${paceRange(pr)}</b> (<b>${kmhRange(pr)}</b>) · <b>약 ${distTime(km*1000,pr[0])}~${distTime(km*1000,pr[1])}</b> · 경사 1% · 심박 <b>≤${p.atHr-1}</b>`],
     ['쿨다운','걷기 3분 + 정적 스트레칭'],
   ]};
 }
 function longRun(p){
   return {kind:'long', head:'롱런 · 존2', meta:'10~12km · 약 80~100분', bd:[
     ['웜업',`첫 2km 점진 · 케이던스 ${p.cadence}`],
-    ['메인',`10~12km @ <b>${paceRange(p.long)}</b> (<b>${kmhRange(p.long)}</b>) · 심박 <b>≤${p.atHr-1}</b> · 후반 여유`],
+    ['메인',`10~12km @ <b>${paceRange(p.long)}</b> (<b>${kmhRange(p.long)}</b>) · <b>약 ${distTime(10000,p.long[0])}~${distTime(12000,p.long[1])}</b> · 심박 <b>≤${p.atHr-1}</b> · 후반 여유`],
     ['쿨다운','걷기 5분 + 스트레칭 + 전해질·단백질'],
   ]};
 }
@@ -183,7 +187,7 @@ function threshold(p){
   const t=tm(p);
   return {kind:'qual', head:'임계주 (템포)', meta:'약 6km · 약 43분', bd:[
     ['웜업',`이지 조깅 10분 @${pace(p.warmup)} (러닝머신 <b>${t.warm} km/h</b>) + 스트라이드 100m×2 (개당 약 25~30초 @ ${p.strideKmh} km/h)`],
-    ['메인',`20분 연속 @ <b>${paceRange(p.threshold)}</b> (러닝머신 <b>${kmhRange(p.threshold)}</b>) · 심박 <b>${p.atHr}~${p.atHr+15}</b>`],
+    ['메인',`20분 연속 @ <b>${paceRange(p.threshold)}</b> (러닝머신 <b>${kmhRange(p.threshold)}</b>) · <b>약 ${(1200/((p.threshold[0]+p.threshold[1])/2)).toFixed(1)}km</b> · 심박 <b>${p.atHr}~${p.atHr+15}</b>`],
     ['쿨다운',`이지 조깅 10분 @${pace(p.recJog)} (<b>${t.rec} km/h</b>) + 정적 스트레칭`],
   ]};
 }
@@ -192,7 +196,7 @@ function interval(p, reps){
   return {kind:'qual', head:'목표페이스 인터벌', meta:`약 ${reps+3}~${reps+4}km · 약 ${mins}분`, bd:[
     ['웜업',`이지 조깅 10분 @${pace(p.warmup)} (러닝머신 <b>${t.warm} km/h</b>)`],
     ['스트라이드',`100m × 3 · 개당 <b>약 25~30초</b> @ <b>${p.strideKmh} km/h</b> · 사이 걷기 4.5~5.0 km/h 30~60초 회복`],
-    ['메인',`1km × ${reps} @ <b>${paceRange(p.interval)}</b> (러닝머신 <b>${kmhRange(p.interval)}</b>) · 1km <b>${distTime(1000,(p.interval[0]+p.interval[1])/2)}</b> · 심박 <b>${p.antHr-8}~${p.antHr}</b>`],
+    ['메인',`1km × ${reps} @ <b>${paceRange(p.interval)}</b> (러닝머신 <b>${kmhRange(p.interval)}</b>) · 1km <b>${distTime(1000,(p.interval[0]+p.interval[1])/2)}</b> (총 <b>${distTime(reps*1000,(p.interval[0]+p.interval[1])/2)}</b>) · 심박 <b>${p.antHr-8}~${p.antHr}</b>`],
     ['리커버리',`반복 사이 · 걷기 <b>5.0~5.5 km/h · 약 90초</b> (또는 300m 조깅 <b>${distTime(300,p.recJog)}</b> @ ${kmh(p.recJog)} km/h) · 심박 130대 초반까지`],
     ['쿨다운',`이지 조깅 10분 @${pace(p.warmup)} (<b>${t.warm} km/h</b>) + 정적 스트레칭`],
   ]};
@@ -405,7 +409,13 @@ function renderSettings(){
     </div>
     <button class="btn" id="save">저장</button>
     <button class="btn sec" id="reset" style="margin-top:8px">기본값 복원</button>
-    <div class="saved" id="savedmsg"></div>`;
+    <div class="saved" id="savedmsg"></div>
+    <div class="card" style="margin-top:12px"><h3>앱 정보</h3>
+      <div class="zone"><span class="zn">버전</span><span class="zv">v${APP_VERSION} (${APP_BUILD})</span></div>
+      <div class="zone"><span class="zn">캐시</span><span class="zv" id="swcache">확인 중…</span></div>
+      <div class="zone"><span class="zn">기록</span><span class="zv">러닝 ${LOGS.length}건 · 체중 ${WEIGHTS.length}건</span></div>
+      <button class="btn sec" id="forceupd" style="margin-top:10px">캐시 비우고 새로고침</button>
+    </div>`;
   document.getElementById('save').onclick=()=>{
     const g=id=>document.getElementById(id).value;
     const pr=id=>{const [a,b]=g(id).split('~').map(x=>{const m=x.split(':');return (+m[0])*60+(+(m[1]||0));}); return [a,b];};
@@ -429,6 +439,14 @@ function renderSettings(){
   };
   document.getElementById('resetroster').onclick=()=>{ ROSTER=DEFAULT_ROSTER; localStorage.removeItem('shrc_roster'); regen(); renderSettings(); };
   document.getElementById('wxbtn').onclick=fetchWeather;
+  (async()=>{ const el=document.getElementById('swcache'); if(!el)return;
+    try{ const ks=await caches.keys(); el.textContent = ks.length? ks.join(', ') : '없음(오프라인 미적용)'; }catch(e){ el.textContent='확인 불가'; } })();
+  const fu=document.getElementById('forceupd'); if(fu) fu.onclick=async()=>{
+    try{ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k)));
+      const rs=await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r=>r.unregister()));
+    }catch(e){}
+    location.reload(true);
+  };
 }
 
 /* ---------- Phase 3 · log / weight / calibration ---------- */
@@ -599,6 +617,7 @@ function show(tab){
   RENDER[tab]();
 }
 document.querySelectorAll('.tb').forEach(b=>b.onclick=()=>show(b.dataset.tab));
+document.getElementById('verlabel').textContent='v'+APP_VERSION;
 document.getElementById('dtag').textContent=fmtToday();
 renderToday();
 
