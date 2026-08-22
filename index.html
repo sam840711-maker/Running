@@ -127,7 +127,7 @@
 
 <script>
 /* ---------- app meta ---------- */
-const APP_VERSION='6.4';
+const APP_VERSION='6.5';
 const APP_BUILD='2026-08-10';
 
 /* ---------- storage ---------- */
@@ -266,37 +266,37 @@ const SEP_DEFAULT = { month:'2026-09', days:[
   {d:30,kind:'flight',label:'HKG-ICN 12:05',reason:'낮 출발 · 오전 이지 가능',opt:1,humid:1,heat:'홍콩 30°C·습함'},
 ]};
 const AUG_DEFAULT = { month:'2026-08', days:[
-  {d:1,kind:'off',label:'RQOFF',hint:'rest',reason:'완전휴무 (지난주 잔여)'},
+  {d:1,kind:'off',label:'RQOFF',hint:'rest',reason:'월초 휴무',heat:'낮 33°C'},
   {d:2,kind:'off',label:'RQOFF',hint:'easy',heat:'낮 34°C·열대야'},
-  {d:3,kind:'flight',label:'FLT ×3',sectors:3,layover:'대구',reason:'GMP-CJU-FUK-TAE → 대구 L/O'},
-  {d:4,kind:'layover',label:'L/O 대구→UBN',layover:'대구',nightDep:'UBN',heat:'대구 35°C+',opt:1},
-  {d:5,kind:'flight',label:'UBN-TAE 06:20',redeye:1,reason:'새벽도착 → L/O · 회복'},
-  {d:6,kind:'flight',label:'NRT 왕복+DH',sectors:2,reason:'TAE-NRT-TAE → 김포'},
-  {d:7,kind:'off',label:'OFF',hint:'interval',reps:4,heat:'낮 37°C 폭염peak'},
-  {d:8,kind:'flight',label:'FLT ×3',sectors:3,layover:'부산',reason:'GMP-CJU-KIX-PUS → 부산 L/O'},
-  {d:9,kind:'layover',label:'L/O 부산→HKG',layover:'부산',nightDep:'HKG',coast:1,heat:'부산 31°C·습함'},
-  {d:10,kind:'layover',label:'L/O 홍콩',layover:'홍콩',humid:1,heat:'홍콩 32°C·습85%+'},
-  {d:11,kind:'flight',label:'HKG-PUS 06:20',redeye:1,reason:'새벽도착 +DH · 회복'},
+  {d:3,kind:'flight',label:'GMP-CJU-FUK-TAE',sectors:3,layover:'대구',reason:'대구 L/O',heat:'낮 34°C'},
+  {d:4,kind:'flight',label:'야간 TAE-UBN',nightDep:'울란바토르',reason:'대구서 야간 출발',heat:'낮 34°C'},
+  {d:5,kind:'flight',label:'UBN-TAE 06:20',redeye:1,reason:'새벽도착 · 회복'},
+  {d:6,kind:'flight',label:'TAE-NRT 왕복+교육',sectors:2,reason:'NRT 왕복 후 오후 교육',heat:'낮 33°C'},
+  {d:7,kind:'off',label:'OFF',hint:'interval',reps:5,heat:'낮 36°C 폭염'},
+  {d:8,kind:'flight',label:'GMP-CJU-KIX-PUS',sectors:3,layover:'부산',reason:'부산 L/O',heat:'낮 33°C'},
+  {d:9,kind:'flight',label:'야간 PUS-HKG',nightDep:'홍콩',coast:1,reason:'부산서 야간 출발',heat:'부산 31°C'},
+  {d:10,kind:'layover',label:'L/O 홍콩',layover:'홍콩',hint:'easy',humid:1,coast:1,heat:'홍콩 32°C·습함'},
+  {d:11,kind:'flight',label:'HKG-PUS 06:20',redeye:1,reason:'새벽도착 +정비편 · 회복'},
   {d:12,kind:'off',label:'OFF',hint:'threshold',heat:'낮 32°C'},
-  {d:13,kind:'flight',label:'야간 BKK',nightDep:'BKK',heat:'낮 31°C',opt:1},
-  {d:14,kind:'layover',label:'L/O 방콕',layover:'방콕',humid:1,heat:'방콕 33°C·우기'},
+  {d:13,kind:'flight',label:'야간 ICN-BKK',nightDep:'방콕',reason:'저녁 출발 · 방콕 L/O',heat:'낮 31°C'},
+  {d:14,kind:'layover',label:'L/O 방콕',layover:'방콕',hint:'easy',humid:1,heat:'방콕 33°C·우기'},
   {d:15,kind:'flight',label:'BKK-ICN 07:40',redeye:1,reason:'새벽도착 · 회복'},
-  {d:16,kind:'off',label:'RQOFF',hint:'long',heat:'낮 30°C 완화'},
+  {d:16,kind:'off',label:'RQOFF',hint:'long',heat:'낮 30°C'},
   {d:17,kind:'off',label:'OFF',hint:'easyrec',heat:'낮 29°C'},
-  {d:18,kind:'reserve',label:'RESV',hint:'easyrec',opt:1,heat:'낮 29°C'},
-  {d:19,kind:'flight',label:'TSA 왕복',sectors:2,reason:'GMP-TSA-GMP 당일왕복'},
-  {d:20,kind:'flight',label:'제주 왕복',sectors:2,reason:'제주 왕복 · 21:10 도착'},
-  {d:21,kind:'flight',label:'야간 NRT',nightDep:'NRT',heat:'낮 30°C'},
-  {d:22,kind:'flight',label:'NRT-ICN 00:25',redeye:1,reason:'새벽도착 · 회복'},
+  {d:18,kind:'reserve',label:'RESV',hint:'easy',opt:1,reason:'종일 대기',heat:'낮 29°C'},
+  {d:19,kind:'flight',label:'GMP-TSA 왕복',sectors:2,reason:'타이베이 당일왕복',heat:'낮 30°C'},
+  {d:20,kind:'flight',label:'국내 다구간',sectors:4,reason:'제주 왕복 ×2 · 21:10 종료',heat:'낮 31°C'},
+  {d:21,kind:'flight',label:'야간 ICN-NRT 왕복',nightDep:'나리타',reason:'저녁 출발 · 00:25 종료',heat:'낮 30°C'},
+  {d:22,kind:'off',label:'OFF',hint:'easyrec',reason:'전날 야간 근무 후 회복',heat:'낮 30°C'},
   {d:23,kind:'off',label:'OFF',hint:'interval',reps:5,heat:'낮 30°C'},
   {d:24,kind:'off',label:'OFF',hint:'easyrec',heat:'낮 30°C'},
   {d:25,kind:'off',label:'OFF',hint:'long',heat:'낮 30°C'},
-  {d:26,kind:'flight',label:'HSG 왕복',sectors:2,early:1,reason:'사가 왕복 · 06:30 show'},
-  {d:27,kind:'flight',label:'FLT ×3',sectors:3,layover:'대구',reason:'GMP-CJU-FUK-TAE → 대구 L/O'},
-  {d:28,kind:'flight',label:'NRT 왕복+DH',sectors:2,reason:'TAE-NRT-TAE → 김포'},
+  {d:26,kind:'flight',label:'ICN-HSG 06:30',early:1,sectors:2,reason:'사가 왕복 · 이른 show'},
+  {d:27,kind:'flight',label:'GMP-CJU-FUK-TAE',sectors:3,layover:'대구',reason:'대구 L/O',heat:'낮 30°C'},
+  {d:28,kind:'flight',label:'TAE-NRT 왕복+교육',sectors:2,reason:'NRT 왕복 후 오후 교육',heat:'낮 30°C'},
   {d:29,kind:'off',label:'OFF',hint:'threshold',heat:'낮 30°C'},
-  {d:30,kind:'flight',label:'FLT ×5',sectors:5,reason:'5섹터 빡센 날 · 회복'},
-  {d:31,kind:'flight',label:'야간 DAD',nightDep:'DAD',heat:'낮 30°C'},
+  {d:30,kind:'flight',label:'국내 다구간 05:25',sectors:4,early:1,reason:'이른 show · 다구간'},
+  {d:31,kind:'flight',label:'야간 ICN-DAD',nightDep:'다낭',reason:'저녁 출발',heat:'낮 30°C'},
 ]};
 const DEFAULT_ROSTERS = { '2026-08':AUG_DEFAULT, '2026-09':SEP_DEFAULT };
 
@@ -349,7 +349,7 @@ function generatePlan(roster){
   days.forEach((d,i)=>{ plan[d.d]=genDay(days,i); });
   return plan;
 }
-const ROSTER_SEED='2026-08+09-v1';
+const ROSTER_SEED='2026-08+09-v2';
 function loadRosters(){ try{
     let map=JSON.parse(localStorage.getItem('shrc_rosters')||'null');
     const seed=localStorage.getItem('shrc_roster_seed');
