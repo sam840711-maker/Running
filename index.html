@@ -123,7 +123,7 @@
 
 <script>
 /* ---------- app meta ---------- */
-const APP_VERSION='6.2';
+const APP_VERSION='6.3';
 const APP_BUILD='2026-08-10';
 
 /* ---------- storage ---------- */
@@ -229,38 +229,37 @@ const DOW=['일','월','화','수','목','금','토'];
    { d:일, kind:'off'|'flight'|'layover'|'reserve', label:'표시',
      sectors:섹터수, layover:'도시', nightDep:'목적지', redeye:1, early:1, coast:1, humid:1,
      heat:'낮 30°C', hint:'interval'|'threshold'|'long'|'easy'|'easyrec'|'rest', reps:4, opt:1, reason:'휴식사유' } */
-const DEFAULT_ROSTER = { month:'2026-08', days:[
-  {d:1,kind:'off',label:'RQOFF',hint:'rest',reason:'완전휴무 (지난주 잔여)'},
-  {d:2,kind:'off',label:'RQOFF',hint:'easy',heat:'낮 34°C·열대야'},
-  {d:3,kind:'flight',label:'FLT ×3',sectors:3,layover:'대구',reason:'GMP-CJU-FUK-TAE → 대구 L/O'},
-  {d:4,kind:'layover',label:'L/O 대구→UBN',layover:'대구',nightDep:'UBN',heat:'대구 35°C+',opt:1},
-  {d:5,kind:'flight',label:'UBN-TAE 06:20',redeye:1,reason:'새벽도착 → L/O · 회복'},
-  {d:6,kind:'flight',label:'NRT 왕복+DH',sectors:2,reason:'TAE-NRT-TAE → 김포'},
-  {d:7,kind:'off',label:'OFF',hint:'interval',reps:4,heat:'낮 37°C 폭염peak'},
-  {d:8,kind:'flight',label:'FLT ×3',sectors:3,layover:'부산',reason:'GMP-CJU-KIX-PUS → 부산 L/O'},
-  {d:9,kind:'layover',label:'L/O 부산→HKG',layover:'부산',nightDep:'HKG',coast:1,heat:'부산 31°C·습함'},
-  {d:10,kind:'layover',label:'L/O 홍콩',layover:'홍콩',humid:1,heat:'홍콩 32°C·습85%+'},
-  {d:11,kind:'flight',label:'HKG-PUS 06:20',redeye:1,reason:'새벽도착 +DH · 회복'},
-  {d:12,kind:'off',label:'OFF',hint:'threshold',heat:'낮 32°C'},
-  {d:13,kind:'flight',label:'야간 BKK',nightDep:'BKK',heat:'낮 31°C',opt:1},
-  {d:14,kind:'layover',label:'L/O 방콕',layover:'방콕',humid:1,heat:'방콕 33°C·우기'},
-  {d:15,kind:'flight',label:'BKK-ICN 07:40',redeye:1,reason:'새벽도착 · 회복'},
-  {d:16,kind:'off',label:'RQOFF',hint:'long',heat:'낮 30°C 완화'},
-  {d:17,kind:'off',label:'OFF',hint:'easyrec',heat:'낮 29°C'},
-  {d:18,kind:'reserve',label:'RESV',hint:'easyrec',opt:1,heat:'낮 29°C'},
-  {d:19,kind:'flight',label:'TSA 왕복',sectors:2,reason:'GMP-TSA-GMP 당일왕복'},
-  {d:20,kind:'flight',label:'제주 왕복',sectors:2,reason:'제주 왕복 · 21:10 도착'},
-  {d:21,kind:'flight',label:'야간 NRT',nightDep:'NRT',heat:'낮 30°C'},
-  {d:22,kind:'flight',label:'NRT-ICN 00:25',redeye:1,reason:'새벽도착 · 회복'},
-  {d:23,kind:'off',label:'OFF',hint:'interval',reps:5,heat:'낮 30°C'},
-  {d:24,kind:'off',label:'OFF',hint:'easyrec',heat:'낮 30°C'},
-  {d:25,kind:'off',label:'OFF',hint:'long',heat:'낮 30°C'},
-  {d:26,kind:'flight',label:'HSG 왕복',sectors:2,early:1,reason:'사가 왕복 · 06:30 show'},
-  {d:27,kind:'flight',label:'FLT ×3',sectors:3,layover:'대구',reason:'GMP-CJU-FUK-TAE → 대구 L/O'},
-  {d:28,kind:'flight',label:'NRT 왕복+DH',sectors:2,reason:'TAE-NRT-TAE → 김포'},
-  {d:29,kind:'off',label:'OFF',hint:'threshold',heat:'낮 30°C'},
-  {d:30,kind:'flight',label:'FLT ×5',sectors:5,reason:'5섹터 빡센 날 · 회복'},
-  {d:31,kind:'flight',label:'야간 DAD',nightDep:'DAD',heat:'낮 30°C'},
+const DEFAULT_ROSTER = { month:'2026-09', days:[
+  {d:1,kind:'layover',label:'L/O 다낭',layover:'다낭',hint:'easy',coast:1,humid:1,heat:'다낭 31°C·습함'},
+  {d:2,kind:'layover',label:'L/O 다낭',layover:'다낭',hint:'easy',coast:1,humid:1,heat:'다낭 31°C·습함'},
+  {d:3,kind:'flight',label:'DAD-ICN 08:15',redeye:1,reason:'새벽도착 · 회복'},
+  {d:4,kind:'off',label:'OFF',hint:'easyrec',heat:'낮 30°C'},
+  {d:5,kind:'off',label:'OFF',hint:'long',heat:'낮 30°C'},
+  {d:6,kind:'flight',label:'국내 다구간',sectors:4,layover:'청주',reason:'GMP-CJU·CJJ-CJU 등 오후~야간 근무',opt:1,heat:'낮 30°C'},
+  {d:7,kind:'flight',label:'야간 CJJ-DAD',nightDep:'다낭',reason:'저녁 출발 · 오전 이지 가능',opt:1,heat:'낮 30°C'},
+  {d:8,kind:'layover',label:'L/O 다낭',layover:'다낭',hint:'easy',coast:1,humid:1,heat:'다낭 31°C·습함'},
+  {d:9,kind:'flight',label:'DAD-ICN 08:15',redeye:1,reason:'새벽도착 · 회복'},
+  {d:10,kind:'off',label:'OFF',hint:'easyrec',heat:'낮 29°C'},
+  {d:11,kind:'off',label:'OFF',hint:'interval',reps:5,heat:'낮 29°C'},
+  {d:12,kind:'reserve',label:'SBY-B 대기',hint:'easy',opt:1,reason:'오후 대기 · 오전에',heat:'낮 29°C'},
+  {d:13,kind:'reserve',label:'TRAIN+L/O',hint:'easy',reason:'오후 교육 · 오전에',heat:'낮 29°C'},
+  {d:14,kind:'flight',label:'TAE-KIX 06:50',early:1,layover:'오사카',reason:'이른 show · KIX L/O',opt:1,heat:'낮 28°C'},
+  {d:15,kind:'flight',label:'TAE-KIX+교육',early:1,reason:'비행+오후 교육 · 회복',heat:'낮 28°C'},
+  {d:16,kind:'off',label:'OFF',hint:'long',heat:'낮 28°C'},
+  {d:17,kind:'reserve',label:'RESV',hint:'easy',reason:'종일 대기 · 콜 시 조정',heat:'낮 28°C'},
+  {d:18,kind:'reserve',label:'SBY-B 대기',hint:'easy',opt:1,reason:'오후 대기 · 오전에',heat:'낮 28°C'},
+  {d:19,kind:'flight',label:'ICN-FUK 16:25',reason:'오후 출발 · 오전 이지 가능',opt:1,heat:'낮 28°C'},
+  {d:20,kind:'off',label:'OFF',hint:'interval',reps:5,heat:'낮 27°C'},
+  {d:21,kind:'flight',label:'야간 ICN-CXR',nightDep:'깜라인',reason:'저녁 출발 · 오전 이지',opt:1,heat:'낮 28°C'},
+  {d:22,kind:'layover',label:'L/O 깜라인',layover:'깜라인',hint:'easy',coast:1,humid:1,heat:'깜라인 30°C·습함'},
+  {d:23,kind:'flight',label:'CXR-PUS 08:05',redeye:1,reason:'새벽도착 · 회복'},
+  {d:24,kind:'flight',label:'다구간 (추석)',sectors:3,reason:'PUS-KIX·CJU-GMP · 레드아이 다음날 회복',heat:'낮 27°C'},
+  {d:25,kind:'off',label:'RQOFF (추석)',hint:'long',heat:'낮 27°C'},
+  {d:26,kind:'off',label:'RQOFF (추석)',hint:'easyrec',heat:'낮 27°C'},
+  {d:27,kind:'off',label:'OFF',hint:'easy',heat:'낮 26°C'},
+  {d:28,kind:'flight',label:'ICN-HSG 06:30',early:1,sectors:2,reason:'이른 show · 회복'},
+  {d:29,kind:'flight',label:'ICN-HKG 07:05',early:1,layover:'홍콩',reason:'이른 show · HKG L/O',opt:1,humid:1,heat:'홍콩 30°C·습함'},
+  {d:30,kind:'flight',label:'HKG-ICN 12:05',reason:'낮 출발 · 오전 이지 가능',opt:1,humid:1,heat:'홍콩 30°C·습함'},
 ]};
 
 // 다음날이 이른 근무(early)·레드아이·5섹터면 저녁 퀄리티 금지
@@ -312,8 +311,16 @@ function generatePlan(roster){
   days.forEach((d,i)=>{ plan[d.d]=genDay(days,i); });
   return plan;
 }
-function loadRoster(){ try{ return JSON.parse(localStorage.getItem('shrc_roster')||'null')||DEFAULT_ROSTER; }catch(e){ return DEFAULT_ROSTER; } }
-const WEEKS=[{l:'1주',r:'8/1',days:[1]},{l:'2주',r:'8/2–8',days:[2,3,4,5,6,7,8]},{l:'3주',r:'8/9–15',days:[9,10,11,12,13,14,15]},{l:'4주',r:'8/16–22',days:[16,17,18,19,20,21,22]},{l:'5주',r:'8/23–29',days:[23,24,25,26,27,28,29]},{l:'6주',r:'8/30–31',days:[30,31]}];
+const ROSTER_SEED='2026-09-v1';
+function loadRoster(){ try{
+    if(localStorage.getItem('shrc_roster_seed')!==ROSTER_SEED){ localStorage.setItem('shrc_roster',JSON.stringify(DEFAULT_ROSTER)); localStorage.setItem('shrc_roster_seed',ROSTER_SEED); return DEFAULT_ROSTER; }
+    return JSON.parse(localStorage.getItem('shrc_roster')||'null')||DEFAULT_ROSTER;
+  }catch(e){ return DEFAULT_ROSTER; } }
+function rosterYM(){ const p=((ROSTER&&ROSTER.month)?ROSTER.month:'2026-09').split('-'); return {y:+p[0], mi:(+p[1])-1, mm:+p[1]}; }
+function buildWeeks(){ const ym=rosterYM(); const ds=ROSTER.days.map(x=>x.d).slice().sort((a,b)=>a-b); const weeks=[]; let cur=null;
+  ds.forEach(n=>{ const dow=new Date(ym.y,ym.mi,n).getDay(); if(cur===null||dow===0){ cur={days:[]}; weeks.push(cur);} cur.days.push(n); });
+  weeks.forEach((w,i)=>{ const f=w.days[0], l=w.days[w.days.length-1]; w.l=(i+1)+'주'; w.r=ym.mm+'/'+f+(l!==f?'–'+l:''); });
+  return weeks; }
 
 /* ===== Phase 5 · 근력(플랜핏) 통합 =====
    확정된 SamLee1 플랜: Day A(상체 우세·30분) / Day B(하체 우세·40분). 주 2회.
@@ -360,8 +367,9 @@ function scheduleStrength(plan, weeks){
   return plan;
 }
 let ROSTER = loadRoster();
+let WEEKS = buildWeeks();
 let PLAN = scheduleStrength(generatePlan(ROSTER), WEEKS);
-function regen(){ PLAN=scheduleStrength(generatePlan(ROSTER), WEEKS); renderToday(); }
+function regen(){ WEEKS=buildWeeks(); PLAN=scheduleStrength(generatePlan(ROSTER), WEEKS); renderToday(); }
 
 /* ---------- render helpers ---------- */
 function envHTML(env){
@@ -396,9 +404,10 @@ function strengthHTML(day){
 
 /* ---------- current day ---------- */
 function todayN(){
-  const d=new Date();
-  if(d.getFullYear()===2026 && d.getMonth()===7) return d.getDate();
-  return 7; // fallback demo day
+  const d=new Date(); const ym=rosterYM();
+  if(d.getFullYear()===ym.y && d.getMonth()===ym.mi) return d.getDate();
+  const maxD=Math.max.apply(null, ROSTER.days.map(x=>x.d));
+  return Math.min(d.getDate(), maxD);
 }
 function fmtToday(){
   const d=new Date(); const wd=DOW[d.getDay()];
@@ -408,8 +417,8 @@ function fmtToday(){
 /* ---------- views ---------- */
 function renderToday(){
   const n=todayN(); const day=PLAN[n];
-  const dow=DOW[new Date(2026,7,n).getDay()];
-  let html=`<div class="card"><h3>오늘 · 8/${n} (${dow})</h3><div style="margin-bottom:10px">${dutyStrip(day)} <span class="chip ${day.carb==='high'?'high':'low'}" style="margin-left:6px">${day.carb==='high'?'고탄수':'저탄수'}</span>${day.strength?` <span class="chip str">근력 ${day.strength}</span>`:''}</div>${sessHTML(day,n)}${day.s.type!=='rest'&&!TIMER.steps?'<button class="btn" id="startsess" style="margin-top:10px">▶ 세션 타이머 시작</button>':''}${strengthHTML(day)}</div>`;
+  const dow=DOW[new Date(rosterYM().y,rosterYM().mi,n).getDay()];
+  let html=`<div class="card"><h3>오늘 · ${rosterYM().mm}/${n} (${dow})</h3><div style="margin-bottom:10px">${dutyStrip(day)} <span class="chip ${day.carb==='high'?'high':'low'}" style="margin-left:6px">${day.carb==='high'?'고탄수':'저탄수'}</span>${day.strength?` <span class="chip str">근력 ${day.strength}</span>`:''}</div>${sessHTML(day,n)}${day.s.type!=='rest'&&!TIMER.steps?'<button class="btn" id="startsess" style="margin-top:10px">▶ 세션 타이머 시작</button>':''}${strengthHTML(day)}</div>`;
   html+=timerHTML();
   // quick zones
   const z=zones(P);
@@ -421,7 +430,7 @@ function renderWeek(){
   const cur=todayN();
   let wi=WEEKS.findIndex(w=>w.days.includes(cur)); if(wi<0)wi=1;
   const nav=`<div class="wk-nav">${WEEKS.map((w,i)=>`<button class="${i===wi?'on':''}" data-wk="${i}">${w.l} · ${w.r}</button>`).join('')}</div>`;
-  const body=WEEKS[wi].days.map(n=>{const day=PLAN[n];const dow=DOW[new Date(2026,7,n).getDay()];
+  const body=WEEKS[wi].days.map(n=>{const day=PLAN[n];const dow=DOW[new Date(rosterYM().y,rosterYM().mi,n).getDay()];
     return `<div class="daycard ${n===cur?'today':''}"><div class="dh"><span class="dn">${n}<span class="dw">${dow}</span></span>${dutyStrip(day)}<span class="chip ${day.carb==='high'?'high':'low'}">${day.carb==='high'?'고탄':'저탄'}</span>${day.walk?'<span class="chip walk">걷기</span>':''}${day.strength?`<span class="chip str">근력 ${day.strength}</span>`:''}</div>${sessHTML(day,n)}${strengthHTML(day)}</div>`;
   }).join('');
   document.getElementById('tab-week').innerHTML=`<div class="card" style="padding:12px 12px 4px">${nav}</div>${body}`;
@@ -430,7 +439,7 @@ function renderWeek(){
 function renderWeekAt(wi){
   const cur=todayN();
   const nav=`<div class="wk-nav">${WEEKS.map((w,i)=>`<button class="${i===wi?'on':''}" data-wk="${i}">${w.l} · ${w.r}</button>`).join('')}</div>`;
-  const body=WEEKS[wi].days.map(n=>{const day=PLAN[n];const dow=DOW[new Date(2026,7,n).getDay()];
+  const body=WEEKS[wi].days.map(n=>{const day=PLAN[n];const dow=DOW[new Date(rosterYM().y,rosterYM().mi,n).getDay()];
     return `<div class="daycard ${n===cur?'today':''}"><div class="dh"><span class="dn">${n}<span class="dw">${dow}</span></span>${dutyStrip(day)}<span class="chip ${day.carb==='high'?'high':'low'}">${day.carb==='high'?'고탄':'저탄'}</span>${day.walk?'<span class="chip walk">걷기</span>':''}${day.strength?`<span class="chip str">근력 ${day.strength}</span>`:''}</div>${sessHTML(day,n)}${strengthHTML(day)}</div>`;
   }).join('');
   document.getElementById('tab-week').innerHTML=`<div class="card" style="padding:12px 12px 4px">${nav}</div>${body}`;
