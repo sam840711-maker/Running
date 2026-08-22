@@ -100,6 +100,7 @@
   .mo-nav .mo-btn{background:var(--card2);border:1px solid var(--line);color:var(--ink);width:38px;height:32px;border-radius:8px;font-size:18px;line-height:1;cursor:pointer;}
   .mo-nav .mo-btn:disabled{opacity:.3;cursor:default;}
   .mo-nav .mo-cur{font-weight:700;font-size:14px;min-width:130px;text-align:center;letter-spacing:.3px;}
+  .day-nav{display:flex;align-items:center;gap:8px;}
   .hide{display:none;}
 </style>
 </head>
@@ -127,7 +128,7 @@
 
 <script>
 /* ---------- app meta ---------- */
-const APP_VERSION='6.5';
+const APP_VERSION='6.6';
 const APP_BUILD='2026-08-10';
 
 /* ---------- storage ---------- */
@@ -362,7 +363,7 @@ function monthsAvail(){ return Object.keys(ROSTERS).sort(); }
 function realMonth(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
 function pickCurMonth(){ const sv=localStorage.getItem('shrc_curmonth'); const av=monthsAvail(); if(sv&&ROSTERS[sv])return sv; if(ROSTERS[realMonth()])return realMonth(); return av[av.length-1]||'2026-09'; }
 function saveRosters(){ localStorage.setItem('shrc_rosters', JSON.stringify(ROSTERS)); }
-function setMonth(ym){ if(!ROSTERS[ym])return; curMonth=ym; localStorage.setItem('shrc_curmonth',ym); ROSTER=ROSTERS[ym]; regen(); const a=document.querySelector('.tabbar .on'); const t=a?a.dataset.tab:'week'; show(t); }
+function setMonth(ym){ if(!ROSTERS[ym])return; curMonth=ym; localStorage.setItem('shrc_curmonth',ym); ROSTER=ROSTERS[ym]; recompute(); viewDay=(curMonth===realMonth()?todayN():dayMin()); const a=document.querySelector('.tabbar .on'); const t=a?a.dataset.tab:'week'; show(t); }
 function rosterYM(){ const p=((ROSTER&&ROSTER.month)?ROSTER.month:'2026-09').split('-'); return {y:+p[0], mi:(+p[1])-1, mm:+p[1]}; }
 function buildWeeks(){ const ym=rosterYM(); const ds=ROSTER.days.map(x=>x.d).slice().sort((a,b)=>a-b); const weeks=[]; let cur=null;
   ds.forEach(n=>{ const dow=new Date(ym.y,ym.mi,n).getDay(); if(cur===null||dow===0){ cur={days:[]}; weeks.push(cur);} cur.days.push(n); });
@@ -418,7 +419,22 @@ let curMonth = pickCurMonth();
 let ROSTER = ROSTERS[curMonth];
 let WEEKS = buildWeeks();
 let PLAN = scheduleStrength(generatePlan(ROSTER), WEEKS);
-function regen(){ WEEKS=buildWeeks(); PLAN=scheduleStrength(generatePlan(ROSTER), WEEKS); renderToday(); }
+let viewDay = null;
+function recompute(){ WEEKS=buildWeeks(); PLAN=scheduleStrength(generatePlan(ROSTER), WEEKS); }
+function regen(){ recompute(); renderToday(); }
+function dayMin(){ return Math.min.apply(null, ROSTER.days.map(x=>x.d)); }
+function dayMax(){ return Math.max.apply(null, ROSTER.days.map(x=>x.d)); }
+function clampDay(d){ return Math.max(dayMin(), Math.min(dayMax(), d)); }
+function shiftDay(dir){
+  const av=monthsAvail(), i=av.indexOf(curMonth); let nd=(viewDay||todayN())+dir;
+  if(nd<dayMin() && i>0){ curMonth=av[i-1]; localStorage.setItem('shrc_curmonth',curMonth); ROSTER=ROSTERS[curMonth]; recompute(); viewDay=dayMax(); renderToday(); return; }
+  if(nd>dayMax() && i<av.length-1){ curMonth=av[i+1]; localStorage.setItem('shrc_curmonth',curMonth); ROSTER=ROSTERS[curMonth]; recompute(); viewDay=dayMin(); renderToday(); return; }
+  viewDay=clampDay(nd); renderToday();
+}
+function goToday(){ const rm=realMonth(); if(ROSTERS[rm] && curMonth!==rm){ curMonth=rm; localStorage.setItem('shrc_curmonth',rm); ROSTER=ROSTERS[rm]; recompute(); } viewDay=todayN(); renderToday(); }
+function bindSwipe(){ const el=document.getElementById('tab-today'); if(!el) return; let sx=0,sy=0,tr=false;
+  el.ontouchstart=e=>{ if(e.touches.length!==1){tr=false;return;} sx=e.touches[0].clientX; sy=e.touches[0].clientY; tr=true; };
+  el.ontouchend=e=>{ if(!tr)return; tr=false; const t=e.changedTouches[0]; const dx=t.clientX-sx, dy=t.clientY-sy; if(Math.abs(dx)>50 && Math.abs(dx)>Math.abs(dy)*1.5){ shiftDay(dx<0?1:-1); } }; }
 function monthNavHTML(){ const av=monthsAvail(); const i=av.indexOf(curMonth); const pv=i>0?av[i-1]:'',nx=i<av.length-1?av[i+1]:''; return `<div class="mo-nav"><button class="mo-btn" ${pv?'':'disabled'} data-mo="${pv}">‹</button><span class="mo-cur">${curMonth}${curMonth===realMonth()?' · 이번달':''}</span><button class="mo-btn" ${nx?'':'disabled'} data-mo="${nx}">›</button></div>`; }
 function bindMonthNav(){ document.querySelectorAll('.mo-btn[data-mo]').forEach(b=>{ if(b.dataset.mo) b.onclick=()=>setMonth(b.dataset.mo); }); }
 
@@ -467,17 +483,23 @@ function fmtToday(){
 
 /* ---------- views ---------- */
 function renderToday(){
-  const real=isRealMonth(); const n=todayN(); const day=PLAN[n];
+  if(viewDay==null) viewDay=todayN();
+  viewDay=clampDay(viewDay);
+  const real=isRealMonth(); const n=viewDay; const day=PLAN[n];
+  const isToday = real && n===todayN();
   const dow=DOW[new Date(rosterYM().y,rosterYM().mi,n).getDay()];
   const d0=new Date();
   let html=`<div class="card" style="padding:10px 12px 8px">${monthNavHTML()}${real?'':`<div class="muted" style="text-align:center;font-size:11px">이 달은 미리보기 · 오늘은 ${d0.getMonth()+1}/${d0.getDate()}</div>`}</div>`;
-  html+=`<div class="card"><h3>${real?'오늘 · ':''}${rosterYM().mm}/${n} (${dow})</h3><div style="margin-bottom:10px">${dutyStrip(day)} <span class="chip ${day.carb==='high'?'high':'low'}" style="margin-left:6px">${day.carb==='high'?'고탄수':'저탄수'}</span>${day.strength?` <span class="chip str">근력 ${day.strength}</span>`:''}</div>${sessHTML(day,n)}${day.s.type!=='rest'&&!TIMER.steps?'<button class="btn" id="startsess" style="margin-top:10px">▶ 세션 타이머 시작</button>':''}${strengthHTML(day)}</div>`;
+  html+=`<div class="card"><div class="day-nav"><button class="mo-btn" id="dayprev">‹</button><h3 style="margin:0;flex:1;text-align:center">${isToday?'오늘 · ':''}${rosterYM().mm}/${n} (${dow})</h3><button class="mo-btn" id="daynext">›</button></div>${!isToday?`<button class="btn sec" id="daytoday" style="margin:6px 0 2px;padding:7px">↩ 오늘로</button>`:''}<div style="margin:10px 0 10px">${dutyStrip(day)} <span class="chip ${day.carb==='high'?'high':'low'}" style="margin-left:6px">${day.carb==='high'?'고탄수':'저탄수'}</span>${day.strength?` <span class="chip str">근력 ${day.strength}</span>`:''}</div>${sessHTML(day,n)}${day.s.type!=='rest'&&!TIMER.steps?'<button class="btn" id="startsess" style="margin-top:10px">▶ 세션 타이머 시작</button>':''}${strengthHTML(day)}<div class="muted" style="text-align:center;font-size:10px;margin-top:8px">← 좌우로 넘겨 하루씩 이동 →</div></div>`;
   html+=timerHTML();
   // quick zones
   const z=zones(P);
   html+=`<div class="card"><h3>내 심박 존 (AT ${P.atHr} · AnT ${P.antHr})</h3>`+z.map(x=>`<div class="zone"><span class="zn">${x.n}</span><span class="bar" style="background:${x.c};width:${x.w}%"></span></div><div class="muted" style="margin:-4px 0 4px 106px;font-size:11px">${x.v} bpm · ${x.d}</div>`).join('')+`</div>`;
   document.getElementById('tab-today').innerHTML=html;
   bindMonthNav();
+  { const pp=document.getElementById('dayprev'), nn=document.getElementById('daynext'), tt=document.getElementById('daytoday');
+    if(pp) pp.onclick=()=>shiftDay(-1); if(nn) nn.onclick=()=>shiftDay(1); if(tt) tt.onclick=goToday; }
+  bindSwipe();
   bindTimer(day);
 }
 function renderWeek(){
