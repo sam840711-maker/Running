@@ -128,7 +128,7 @@
 
 <script>
 /* ---------- app meta ---------- */
-const APP_VERSION='6.6';
+const APP_VERSION='6.7';
 const APP_BUILD='2026-08-10';
 
 /* ---------- storage ---------- */
@@ -140,7 +140,14 @@ const DEFAULT = {
   easy:[435,470], recovery:[460,490], long:[440,480], threshold:[390,405], interval:[360,370],
   warmup:450, recJog:470, strideKmh:"12~13"
 };
-function loadProfile(){ try{ return Object.assign({}, DEFAULT, JSON.parse(localStorage.getItem('shrc_profile')||'{}')); }catch(e){ return {...DEFAULT}; } }
+function validPace(v){ return Array.isArray(v) && v.length===2 && v.every(x=>typeof x==='number' && isFinite(x) && x>0); }
+function loadProfile(){
+  let p; try{ p=Object.assign({}, DEFAULT, JSON.parse(localStorage.getItem('shrc_profile')||'{}')); }catch(e){ return {...DEFAULT}; }
+  // 저장된 페이스 값이 0/NaN/누락이면 기본값으로 복구 (Infinity·0'00 방지)
+  ['easy','recovery','long','threshold','interval'].forEach(k=>{ if(!validPace(p[k])) p[k]=DEFAULT[k].slice(); });
+  ['restHr','maxHr','atHr','antHr','cadence','tdee','intake'].forEach(k=>{ if(!(typeof p[k]==='number'&&isFinite(p[k])&&p[k]>0)) p[k]=DEFAULT[k]; });
+  return p;
+}
 function saveProfile(p){ localStorage.setItem('shrc_profile', JSON.stringify(p)); }
 let P = loadProfile();
 function loadLogs(){ try{return JSON.parse(localStorage.getItem('shrc_logs')||'[]');}catch(e){return[];} }
@@ -150,7 +157,7 @@ function saveWeights(a){ localStorage.setItem('shrc_weights',JSON.stringify(a));
 let LOGS=loadLogs(), WEIGHTS=loadWeights();
 
 /* ---------- calc module ---------- */
-const kmh = sec => (3600/sec).toFixed(1);
+const kmh = sec => (sec>0 && isFinite(sec)) ? (3600/sec).toFixed(1) : '–';
 const kmhRange = ([fast,slow]) => `${kmh(slow)}~${kmh(fast)} km/h`;   // slow sec = lower kmh
 const pace = sec => `${Math.floor(sec/60)}'${String(Math.round(sec%60)).padStart(2,'0')}`;
 const paceRange = ([fast,slow]) => `${pace(fast)}~${pace(slow)}`;
@@ -578,11 +585,11 @@ function renderSettings(){
     </div>`;
   document.getElementById('save').onclick=()=>{
     const g=id=>document.getElementById(id).value;
-    const pr=id=>{const [a,b]=g(id).split('~').map(x=>{const m=x.split(':');return (+m[0])*60+(+(m[1]||0));}); return [a,b];};
+    const pr=(id,cur)=>{ const [a,b]=g(id).split('~').map(x=>{const m=x.split(':');return (+m[0])*60+(+(m[1]||0));}); return validPace([a,b])?[a,b]:cur; };
     P=Object.assign({},P,{heightCm:+g('heightCm'),weightKg:+g('weightKg'),targetKg:+g('targetKg'),
       restHr:+g('restHr'),maxHr:+g('maxHr'),atHr:+g('atHr'),antHr:+g('antHr'),cadence:+g('cadence'),
       tdee:+g('tdee'),intake:+g('intake'),
-      easy:pr('p_easy'),recovery:pr('p_recovery'),long:pr('p_long'),threshold:pr('p_threshold'),interval:pr('p_interval')});
+      easy:pr('p_easy',P.easy),recovery:pr('p_recovery',P.recovery),long:pr('p_long',P.long),threshold:pr('p_threshold',P.threshold),interval:pr('p_interval',P.interval)});
     saveProfile(P); document.getElementById('savedmsg').textContent='저장됨 · 전 화면 반영';
     renderToday();
   };
