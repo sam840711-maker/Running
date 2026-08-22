@@ -128,7 +128,7 @@
 
 <script>
 /* ---------- app meta ---------- */
-const APP_VERSION='6.7';
+const APP_VERSION='6.8';
 const APP_BUILD='2026-08-10';
 
 /* ---------- storage ---------- */
@@ -163,6 +163,10 @@ const pace = sec => `${Math.floor(sec/60)}'${String(Math.round(sec%60)).padStart
 const paceRange = ([fast,slow]) => `${pace(fast)}~${pace(slow)}`;
 const secFmt = s => s>=60 ? `${Math.floor(s/60)}분${s%60?String(Math.round(s%60))+'초':''}` : `${Math.round(s)}초`;
 const distTime = (meters, sec_per_km) => secFmt(meters/1000*sec_per_km);
+const p_of_kmh = k => pace(3600/k);                 // km/h → "m'ss"
+const both = pr => `${paceRange(pr)} · ${kmhRange(pr)}`;      // sec범위 → "페이스 · 속도"
+const bothSec = sec => `${pace(sec)} · ${kmh(sec)} km/h`;     // 단일 sec
+function bothKmh(str){ const a=String(str).split('~').map(Number); const lo=a[0], hi=a[a.length-1]; return a.length>1 ? `${str} km/h · ${p_of_kmh(hi)}~${p_of_kmh(lo)}` : `${str} km/h · ${p_of_kmh(lo)}`; }
 
 function zones(p){
   return [
@@ -176,48 +180,54 @@ function zones(p){
 function tm(p){ return { warm:kmh(p.warmup), rec:kmh(p.recJog) }; }
 function easyRun(p, km, rec){
   const pr = rec ? p.recovery : p.easy;
-  const avg=(pr[0]+pr[1])/2, mins=Math.round(km*avg/60)+4;
-  return {kind:'easy', head:'이지런 · 존2'+(rec?' (회복)':''), meta:`${km}km · 약 ${mins}분`, bd:[
-    ['웜업','첫 1km 걷기→조깅 점진 · 케이던스 '+p.cadence+' (러닝 구간 기준)'],
-    ['메인',`${km}km @ <b>${paceRange(pr)}</b> (러닝머신 <b>${kmhRange(pr)}</b>) · <b>약 ${distTime(km*1000,pr[0])}~${distTime(km*1000,pr[1])}</b> · 심박 <b>≤${p.atHr-1}</b> · 대화 가능`],
-    ['쿨다운','걷기 3~5분 + 정적 스트레칭'],
+  const avg=(pr[0]+pr[1])/2, warmMin=8, coolMin=5;
+  const total=Math.round(km*avg/60 + warmMin + coolMin);
+  return {kind:'easy', head:'이지런 · 존2'+(rec?' (회복)':''), meta:`${km}km · 총 약 ${total}분`, bd:[
+    ['웜업',`첫 1km 걷기→조깅 점진 (약 ${warmMin}분) · 케이던스 ${p.cadence} (러닝 구간 기준)`],
+    ['메인',`${km}km @ <b>${both(pr)}</b> · <b>약 ${distTime(km*1000,pr[0])}~${distTime(km*1000,pr[1])}</b> · 심박 <b>≤${p.atHr-1}</b> · 대화 가능`],
+    ['쿨다운',`걷기 3~5분 (약 ${coolMin}분) + 정적 스트레칭`],
   ]};
 }
 function treadRun(p, km){
-  const pr=p.easy;
-  const trFast=Math.round((pr[0]+pr[1])/2);   // 실내는 심박 뜸 → 빠른쪽 상한을 평균(≈8.0)으로 캡
-  const trPr=[trFast, pr[1]];
-  const avg=(trPr[0]+trPr[1])/2, mins=Math.round(km*avg/60)+7;
-  return {kind:'tread', head:'트레드밀 이지 · 존2', meta:`${km}km · 약 ${mins}분`, bd:[
-    ['웜업','걷기 5분 (5.5~6.0 km/h)→조깅 점진 · 케이던스 '+p.cadence+' (러닝 구간 기준)'],
-    ['메인',`${km}km @ <b>${paceRange(trPr)}</b> (<b>${kmhRange(trPr)}</b>) · 경사 1% · <b>심박 ≤${p.atHr-1} 우선</b> — 넘으면 속도↓`],
+  const pr=p.easy, trFast=Math.round((pr[0]+pr[1])/2), trPr=[trFast, pr[1]];
+  const avg=(trPr[0]+trPr[1])/2, warmMin=5, coolMin=4;
+  const total=Math.round(km*avg/60 + warmMin + coolMin);
+  return {kind:'tread', head:'트레드밀 이지 · 존2', meta:`${km}km · 총 약 ${total}분`, bd:[
+    ['웜업',`걷기 5분 (${bothKmh('5.5~6.0')})→조깅 점진 · 케이던스 ${p.cadence} (러닝 구간 기준)`],
+    ['메인',`${km}km @ <b>${both(trPr)}</b> · 경사 1% · <b>심박 ≤${p.atHr-1} 우선</b> — 넘으면 속도↓`],
     ['쿨다운','걷기 3~5분 + 정적 스트레칭'],
     ['⚠︎ 실내보정',`실내는 바람 없어 <b>심박 5~10 높게</b> 나옴 · 페이스보다 <b>심박 사수</b> · 8.3km/h는 역치될 수 있으니 금지`],
   ]};
 }
 function longRun(p){
-  return {kind:'long', head:'롱런 · 존2', meta:'10~12km · 약 80~100분', bd:[
-    ['웜업',`첫 2km 점진 · 케이던스 ${p.cadence}`],
-    ['메인',`10~12km @ <b>${paceRange(p.long)}</b> (<b>${kmhRange(p.long)}</b>) · <b>약 ${distTime(10000,p.long[0])}~${distTime(12000,p.long[1])}</b> · 심박 <b>≤${p.atHr-1}</b> · 후반 여유`],
+  const warmMin=14, coolMin=6, ex=warmMin+coolMin;
+  const tLo=Math.round(10*p.long[0]/60)+ex, tHi=Math.round(12*p.long[1]/60)+ex;
+  return {kind:'long', head:'롱런 · 존2', meta:`10~12km · 총 약 ${tLo}~${tHi}분`, bd:[
+    ['웜업',`첫 2km 걷기→조깅 점진 (약 ${warmMin}분) · 케이던스 ${p.cadence}`],
+    ['메인',`10~12km @ <b>${both(p.long)}</b> · <b>약 ${distTime(10000,p.long[0])}~${distTime(12000,p.long[1])}</b> · 심박 <b>≤${p.atHr-1}</b> · 후반 여유`],
     ['쿨다운','걷기 5분 + 스트레칭 + 전해질·단백질'],
   ]};
 }
 function threshold(p){
-  const t=tm(p);
-  return {kind:'qual', head:'임계주 (템포)', meta:'약 6km · 약 43분', bd:[
-    ['웜업',`이지 조깅 10분 @${pace(p.warmup)} (러닝머신 <b>${t.warm} km/h</b>) + 스트라이드 100m×2 (개당 약 25~30초 @ ${p.strideKmh} km/h)`],
-    ['메인',`20분 연속 @ <b>${paceRange(p.threshold)}</b> (러닝머신 <b>${kmhRange(p.threshold)}</b>) · <b>약 ${(1200/((p.threshold[0]+p.threshold[1])/2)).toFixed(1)}km</b> · 심박 <b>${p.atHr}~${p.atHr+15}</b>`],
-    ['쿨다운',`이지 조깅 10분 @${pace(p.recJog)} (<b>${t.rec} km/h</b>) + 정적 스트레칭`],
+  const warmMin=10, strideMin=3, mainMin=20, coolMin=10;
+  const total=warmMin+strideMin+mainMin+coolMin;
+  return {kind:'qual', head:'임계주 (템포)', meta:`약 6km · 총 약 ${total}분`, bd:[
+    ['웜업',`이지 조깅 10분 @<b>${bothSec(p.warmup)}</b>`],
+    ['스트라이드',`100m × 2 · 개당 약 25~30초 @ <b>${bothKmh(p.strideKmh)}</b> · 사이 걷기 회복`],
+    ['메인',`20분 연속 @ <b>${both(p.threshold)}</b> · <b>약 ${(1200/((p.threshold[0]+p.threshold[1])/2)).toFixed(1)}km</b> · 심박 <b>${p.atHr}~${p.atHr+15}</b>`],
+    ['쿨다운',`이지 조깅 10분 @<b>${bothSec(p.recJog)}</b> + 정적 스트레칭`],
   ]};
 }
 function interval(p, reps){
-  const t=tm(p), mins=Math.round(23+7.5*reps);
-  return {kind:'qual', head:'목표페이스 인터벌', meta:`약 ${reps+3}~${reps+4}km · 약 ${mins}분`, bd:[
-    ['웜업',`이지 조깅 10분 @${pace(p.warmup)} (러닝머신 <b>${t.warm} km/h</b>)`],
-    ['스트라이드',`100m × 3 · 개당 <b>약 25~30초</b> @ <b>${p.strideKmh} km/h</b> · 사이 걷기 4.5~5.0 km/h 30~60초 회복`],
-    ['메인',`1km × ${reps} @ <b>${paceRange(p.interval)}</b> (러닝머신 <b>${kmhRange(p.interval)}</b>) · 1km <b>${distTime(1000,(p.interval[0]+p.interval[1])/2)}</b> (총 <b>${distTime(reps*1000,(p.interval[0]+p.interval[1])/2)}</b>) · 심박 <b>${p.antHr-8}~${p.antHr}</b>`],
-    ['리커버리',`반복 사이 · 걷기 <b>5.0~5.5 km/h · 약 90초</b> (또는 300m 조깅 <b>${distTime(300,p.recJog)}</b> @ ${kmh(p.recJog)} km/h) · 심박 130대 초반까지`],
-    ['쿨다운',`이지 조깅 10분 @${pace(p.warmup)} (<b>${t.warm} km/h</b>) + 정적 스트레칭`],
+  const ivAvg=(p.interval[0]+p.interval[1])/2;
+  const warmMin=10, strideMin=4, coolMin=10, recMin=(reps-1)*1.5;
+  const total=Math.round(warmMin+strideMin+reps*ivAvg/60+recMin+coolMin);
+  return {kind:'qual', head:'목표페이스 인터벌', meta:`약 ${reps+3}~${reps+4}km · 총 약 ${total}분`, bd:[
+    ['웜업',`이지 조깅 10분 @<b>${bothSec(p.warmup)}</b>`],
+    ['스트라이드',`100m × 3 · 개당 <b>약 25~30초</b> @ <b>${bothKmh(p.strideKmh)}</b> · 사이 걷기 <b>${bothKmh('4.5~5.0')}</b> 30~60초 회복`],
+    ['메인',`1km × ${reps} @ <b>${both(p.interval)}</b> · 1km <b>${distTime(1000,ivAvg)}</b> (총 <b>${distTime(reps*1000,ivAvg)}</b>) · 심박 <b>${p.antHr-8}~${p.antHr}</b>`],
+    ['리커버리',`반복 사이 · 걷기 <b>${bothKmh('5.0~5.5')} · 약 90초</b> (또는 300m 조깅 <b>${distTime(300,p.recJog)}</b> @ ${bothSec(p.recJog)}) · 심박 130대 초반까지`],
+    ['쿨다운',`이지 조깅 10분 @<b>${bothSec(p.warmup)}</b> + 정적 스트레칭`],
   ]};
 }
 function build(p, s){
@@ -724,20 +734,20 @@ function analyticsHTML(){
 }
 /* ---------- session timer (structured steps) ---------- */
 function stepsFor(day){
-  const s=day.s, kmhE=kmh(P.warmup), kmhR=kmh(P.recJog);
+  const s=day.s, wJog=bothSec(P.warmup), rJog=bothSec(P.recJog);
   const iv=(P.interval[0]+P.interval[1])/2;
   if(s.type==='interval'){
-    const st=[{n:'웜업 조깅',sec:600,sp:kmhE+' km/h'}];
-    for(let i=0;i<3;i++){ st.push({n:`스트라이드 ${i+1}/3`,sec:28,sp:P.strideKmh+' km/h'},{n:'걷기 회복',sec:45,sp:'4.5~5.0 km/h'}); }
-    for(let i=0;i<s.reps;i++){ st.push({n:`1km 반복 ${i+1}/${s.reps}`,sec:Math.round(iv),sp:kmhRange(P.interval)});
-      if(i<s.reps-1) st.push({n:'걷기 회복',sec:90,sp:'5.0~5.5 km/h'}); }
-    st.push({n:'쿨다운 조깅',sec:600,sp:kmhE+' km/h'});
+    const st=[{n:'웜업 조깅',sec:600,sp:wJog}];
+    for(let i=0;i<3;i++){ st.push({n:`스트라이드 ${i+1}/3`,sec:28,sp:bothKmh(P.strideKmh)},{n:'걷기 회복',sec:45,sp:bothKmh('4.5~5.0')}); }
+    for(let i=0;i<s.reps;i++){ st.push({n:`1km 반복 ${i+1}/${s.reps}`,sec:Math.round(iv),sp:both(P.interval)});
+      if(i<s.reps-1) st.push({n:'걷기 회복',sec:90,sp:bothKmh('5.0~5.5')}); }
+    st.push({n:'쿨다운 조깅',sec:600,sp:wJog});
     return st;
   }
-  if(s.type==='threshold') return [{n:'웜업 조깅',sec:600,sp:kmhE+' km/h'},{n:'스트라이드 1/2',sec:28,sp:P.strideKmh+' km/h'},{n:'걷기 회복',sec:45,sp:'4.5~5.0 km/h'},{n:'스트라이드 2/2',sec:28,sp:P.strideKmh+' km/h'},{n:'걷기 회복',sec:45,sp:'4.5~5.0 km/h'},{n:'임계 20분',sec:1200,sp:kmhRange(P.threshold)},{n:'쿨다운 조깅',sec:600,sp:kmhR+' km/h'}];
+  if(s.type==='threshold') return [{n:'웜업 조깅',sec:600,sp:wJog},{n:'스트라이드 1/2',sec:28,sp:bothKmh(P.strideKmh)},{n:'걷기 회복',sec:45,sp:bothKmh('4.5~5.0')},{n:'스트라이드 2/2',sec:28,sp:bothKmh(P.strideKmh)},{n:'걷기 회복',sec:45,sp:bothKmh('4.5~5.0')},{n:'임계 20분',sec:1200,sp:both(P.threshold)},{n:'쿨다운 조깅',sec:600,sp:rJog}];
   if(s.type==='tread'||s.type==='easy'){ const km=s.km||5, pr=s.rec?P.recovery:P.easy;
-    return [{n:'걷기 웜업',sec:180,sp:'5.5~6.0 km/h'},{n:`이지 ${km}km`,sec:Math.round(km*((pr[0]+pr[1])/2)),sp:kmhRange(pr)},{n:'걷기 쿨다운',sec:180,sp:'5.5~6.0 km/h'}]; }
-  if(s.type==='long') return [{n:'점진 웜업 2km',sec:Math.round(2*((P.long[0]+P.long[1])/2)),sp:kmhRange(P.long)},{n:'롱런 본편',sec:3600,sp:kmhRange(P.long)},{n:'걷기 쿨다운',sec:300,sp:'5.5~6.0 km/h'}];
+    return [{n:'걷기 웜업',sec:300,sp:bothKmh('5.5~6.0')},{n:`이지 ${km}km`,sec:Math.round(km*((pr[0]+pr[1])/2)),sp:both(pr)},{n:'걷기 쿨다운',sec:240,sp:bothKmh('5.5~6.0')}]; }
+  if(s.type==='long') return [{n:'점진 웜업 2km',sec:Math.round(2*((P.long[0]+P.long[1])/2)),sp:both(P.long)},{n:'롱런 본편',sec:3600,sp:both(P.long)},{n:'걷기 쿨다운',sec:300,sp:bothKmh('5.5~6.0')}];
   return null;
 }
 let TIMER={steps:null,i:0,left:0,run:false,h:null};
