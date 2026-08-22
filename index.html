@@ -123,7 +123,7 @@
 
 <script>
 /* ---------- app meta ---------- */
-const APP_VERSION='6.1';
+const APP_VERSION='6.2';
 const APP_BUILD='2026-08-10';
 
 /* ---------- storage ---------- */
@@ -330,13 +330,21 @@ const STR_TEMPLATES = {
           ['레그 바이셉 컬','3×10','햄스트링'],['카프 레이즈','3×15~20','종아리'],
           ['와이드 푸쉬업','3×10','가슴·삼두'],['데드 벅','3×10','코어']] },
 };
-const STR_START_DAY = 17;   // 근력 시작일 — 이 날짜 전엔 자동배치 안 함 (2026-08 기준 다음주부터)
+const STR_START = '2026-08-17';   // 근력 시작일(YYYY-MM-DD). 시작 월엔 이 날짜부터, 이후 달은 전체 허용
+function strGateDay(){
+  const m=(typeof ROSTER!=='undefined'&&ROSTER&&ROSTER.month)?ROSTER.month:'';
+  const sm=STR_START.slice(0,7), sd=parseInt(STR_START.slice(8),10);
+  if(!m||m>sm) return 0;      // 시작 월 이후 → 게이트 없음
+  if(m<sm) return 999;        // 시작 월 이전 → 전부 금지
+  return sd;                  // 시작 월 → 시작일부터
+}
 function scheduleStrength(plan, weeks){
+  const gate=strGateDay();
   const isQL = t => t==='interval'||t==='threshold'||t==='long';
   const tOf = n => plan[n]? plan[n].s.type : null;
   const home = n => plan[n] && (plan[n].dt==='off'||plan[n].dt==='reserve');
-  const canB = n => { const t=tOf(n); return n>=STR_START_DAY && home(n) && !isQL(t) && !isQL(tOf(n-1)) && !isQL(tOf(n+1)); };
-  const canA = n => n>=STR_START_DAY && home(n) && tOf(n)!=='long';
+  const canB = n => { const t=tOf(n); return n>=gate && home(n) && !isQL(t) && !isQL(tOf(n-1)) && !isQL(tOf(n+1)); };
+  const canA = n => n>=gate && home(n) && tOf(n)!=='long';
   Object.keys(plan).forEach(k=>{ if(plan[k]) plan[k].strength=null; });
   weeks.forEach(w=>{
     let hasA=false, hasB=false;
