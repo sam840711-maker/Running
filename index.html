@@ -96,6 +96,10 @@
   .tabbar .tb{flex:1;text-align:center;background:none;border:none;cursor:pointer;color:var(--ink-faint);font-size:10px;font-weight:700;padding:4px 0;}
   .tabbar .tb .ic{font-size:18px;display:block;line-height:1.3;}
   .tabbar .tb.on{color:var(--ink);}
+  .mo-nav{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:10px;}
+  .mo-nav .mo-btn{background:var(--card2);border:1px solid var(--line);color:var(--ink);width:38px;height:32px;border-radius:8px;font-size:18px;line-height:1;cursor:pointer;}
+  .mo-nav .mo-btn:disabled{opacity:.3;cursor:default;}
+  .mo-nav .mo-cur{font-weight:700;font-size:14px;min-width:130px;text-align:center;letter-spacing:.3px;}
   .hide{display:none;}
 </style>
 </head>
@@ -123,7 +127,7 @@
 
 <script>
 /* ---------- app meta ---------- */
-const APP_VERSION='6.3';
+const APP_VERSION='6.4';
 const APP_BUILD='2026-08-10';
 
 /* ---------- storage ---------- */
@@ -229,7 +233,7 @@ const DOW=['일','월','화','수','목','금','토'];
    { d:일, kind:'off'|'flight'|'layover'|'reserve', label:'표시',
      sectors:섹터수, layover:'도시', nightDep:'목적지', redeye:1, early:1, coast:1, humid:1,
      heat:'낮 30°C', hint:'interval'|'threshold'|'long'|'easy'|'easyrec'|'rest', reps:4, opt:1, reason:'휴식사유' } */
-const DEFAULT_ROSTER = { month:'2026-09', days:[
+const SEP_DEFAULT = { month:'2026-09', days:[
   {d:1,kind:'layover',label:'L/O 다낭',layover:'다낭',hint:'easy',coast:1,humid:1,heat:'다낭 31°C·습함'},
   {d:2,kind:'layover',label:'L/O 다낭',layover:'다낭',hint:'easy',coast:1,humid:1,heat:'다낭 31°C·습함'},
   {d:3,kind:'flight',label:'DAD-ICN 08:15',redeye:1,reason:'새벽도착 · 회복'},
@@ -261,6 +265,40 @@ const DEFAULT_ROSTER = { month:'2026-09', days:[
   {d:29,kind:'flight',label:'ICN-HKG 07:05',early:1,layover:'홍콩',reason:'이른 show · HKG L/O',opt:1,humid:1,heat:'홍콩 30°C·습함'},
   {d:30,kind:'flight',label:'HKG-ICN 12:05',reason:'낮 출발 · 오전 이지 가능',opt:1,humid:1,heat:'홍콩 30°C·습함'},
 ]};
+const AUG_DEFAULT = { month:'2026-08', days:[
+  {d:1,kind:'off',label:'RQOFF',hint:'rest',reason:'완전휴무 (지난주 잔여)'},
+  {d:2,kind:'off',label:'RQOFF',hint:'easy',heat:'낮 34°C·열대야'},
+  {d:3,kind:'flight',label:'FLT ×3',sectors:3,layover:'대구',reason:'GMP-CJU-FUK-TAE → 대구 L/O'},
+  {d:4,kind:'layover',label:'L/O 대구→UBN',layover:'대구',nightDep:'UBN',heat:'대구 35°C+',opt:1},
+  {d:5,kind:'flight',label:'UBN-TAE 06:20',redeye:1,reason:'새벽도착 → L/O · 회복'},
+  {d:6,kind:'flight',label:'NRT 왕복+DH',sectors:2,reason:'TAE-NRT-TAE → 김포'},
+  {d:7,kind:'off',label:'OFF',hint:'interval',reps:4,heat:'낮 37°C 폭염peak'},
+  {d:8,kind:'flight',label:'FLT ×3',sectors:3,layover:'부산',reason:'GMP-CJU-KIX-PUS → 부산 L/O'},
+  {d:9,kind:'layover',label:'L/O 부산→HKG',layover:'부산',nightDep:'HKG',coast:1,heat:'부산 31°C·습함'},
+  {d:10,kind:'layover',label:'L/O 홍콩',layover:'홍콩',humid:1,heat:'홍콩 32°C·습85%+'},
+  {d:11,kind:'flight',label:'HKG-PUS 06:20',redeye:1,reason:'새벽도착 +DH · 회복'},
+  {d:12,kind:'off',label:'OFF',hint:'threshold',heat:'낮 32°C'},
+  {d:13,kind:'flight',label:'야간 BKK',nightDep:'BKK',heat:'낮 31°C',opt:1},
+  {d:14,kind:'layover',label:'L/O 방콕',layover:'방콕',humid:1,heat:'방콕 33°C·우기'},
+  {d:15,kind:'flight',label:'BKK-ICN 07:40',redeye:1,reason:'새벽도착 · 회복'},
+  {d:16,kind:'off',label:'RQOFF',hint:'long',heat:'낮 30°C 완화'},
+  {d:17,kind:'off',label:'OFF',hint:'easyrec',heat:'낮 29°C'},
+  {d:18,kind:'reserve',label:'RESV',hint:'easyrec',opt:1,heat:'낮 29°C'},
+  {d:19,kind:'flight',label:'TSA 왕복',sectors:2,reason:'GMP-TSA-GMP 당일왕복'},
+  {d:20,kind:'flight',label:'제주 왕복',sectors:2,reason:'제주 왕복 · 21:10 도착'},
+  {d:21,kind:'flight',label:'야간 NRT',nightDep:'NRT',heat:'낮 30°C'},
+  {d:22,kind:'flight',label:'NRT-ICN 00:25',redeye:1,reason:'새벽도착 · 회복'},
+  {d:23,kind:'off',label:'OFF',hint:'interval',reps:5,heat:'낮 30°C'},
+  {d:24,kind:'off',label:'OFF',hint:'easyrec',heat:'낮 30°C'},
+  {d:25,kind:'off',label:'OFF',hint:'long',heat:'낮 30°C'},
+  {d:26,kind:'flight',label:'HSG 왕복',sectors:2,early:1,reason:'사가 왕복 · 06:30 show'},
+  {d:27,kind:'flight',label:'FLT ×3',sectors:3,layover:'대구',reason:'GMP-CJU-FUK-TAE → 대구 L/O'},
+  {d:28,kind:'flight',label:'NRT 왕복+DH',sectors:2,reason:'TAE-NRT-TAE → 김포'},
+  {d:29,kind:'off',label:'OFF',hint:'threshold',heat:'낮 30°C'},
+  {d:30,kind:'flight',label:'FLT ×5',sectors:5,reason:'5섹터 빡센 날 · 회복'},
+  {d:31,kind:'flight',label:'야간 DAD',nightDep:'DAD',heat:'낮 30°C'},
+]};
+const DEFAULT_ROSTERS = { '2026-08':AUG_DEFAULT, '2026-09':SEP_DEFAULT };
 
 // 다음날이 이른 근무(early)·레드아이·5섹터면 저녁 퀄리티 금지
 function isHardNext(days,i){ const nx=days[i+1]; return !!(nx && (nx.early||nx.redeye||(nx.sectors&&nx.sectors>=5))); }
@@ -311,11 +349,20 @@ function generatePlan(roster){
   days.forEach((d,i)=>{ plan[d.d]=genDay(days,i); });
   return plan;
 }
-const ROSTER_SEED='2026-09-v1';
-function loadRoster(){ try{
-    if(localStorage.getItem('shrc_roster_seed')!==ROSTER_SEED){ localStorage.setItem('shrc_roster',JSON.stringify(DEFAULT_ROSTER)); localStorage.setItem('shrc_roster_seed',ROSTER_SEED); return DEFAULT_ROSTER; }
-    return JSON.parse(localStorage.getItem('shrc_roster')||'null')||DEFAULT_ROSTER;
-  }catch(e){ return DEFAULT_ROSTER; } }
+const ROSTER_SEED='2026-08+09-v1';
+function loadRosters(){ try{
+    let map=JSON.parse(localStorage.getItem('shrc_rosters')||'null');
+    const seed=localStorage.getItem('shrc_roster_seed');
+    if(!map){ map={}; const old=JSON.parse(localStorage.getItem('shrc_roster')||'null'); if(old&&old.month&&Array.isArray(old.days)) map[old.month]=old; map=Object.assign({}, DEFAULT_ROSTERS, map); }
+    if(seed!==ROSTER_SEED){ map=Object.assign({}, map, DEFAULT_ROSTERS); localStorage.setItem('shrc_roster_seed',ROSTER_SEED); }
+    localStorage.setItem('shrc_rosters', JSON.stringify(map));
+    return map;
+  }catch(e){ return Object.assign({}, DEFAULT_ROSTERS); } }
+function monthsAvail(){ return Object.keys(ROSTERS).sort(); }
+function realMonth(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function pickCurMonth(){ const sv=localStorage.getItem('shrc_curmonth'); const av=monthsAvail(); if(sv&&ROSTERS[sv])return sv; if(ROSTERS[realMonth()])return realMonth(); return av[av.length-1]||'2026-09'; }
+function saveRosters(){ localStorage.setItem('shrc_rosters', JSON.stringify(ROSTERS)); }
+function setMonth(ym){ if(!ROSTERS[ym])return; curMonth=ym; localStorage.setItem('shrc_curmonth',ym); ROSTER=ROSTERS[ym]; regen(); const a=document.querySelector('.tabbar .on'); const t=a?a.dataset.tab:'week'; show(t); }
 function rosterYM(){ const p=((ROSTER&&ROSTER.month)?ROSTER.month:'2026-09').split('-'); return {y:+p[0], mi:(+p[1])-1, mm:+p[1]}; }
 function buildWeeks(){ const ym=rosterYM(); const ds=ROSTER.days.map(x=>x.d).slice().sort((a,b)=>a-b); const weeks=[]; let cur=null;
   ds.forEach(n=>{ const dow=new Date(ym.y,ym.mi,n).getDay(); if(cur===null||dow===0){ cur={days:[]}; weeks.push(cur);} cur.days.push(n); });
@@ -366,10 +413,14 @@ function scheduleStrength(plan, weeks){
   });
   return plan;
 }
-let ROSTER = loadRoster();
+let ROSTERS = loadRosters();
+let curMonth = pickCurMonth();
+let ROSTER = ROSTERS[curMonth];
 let WEEKS = buildWeeks();
 let PLAN = scheduleStrength(generatePlan(ROSTER), WEEKS);
 function regen(){ WEEKS=buildWeeks(); PLAN=scheduleStrength(generatePlan(ROSTER), WEEKS); renderToday(); }
+function monthNavHTML(){ const av=monthsAvail(); const i=av.indexOf(curMonth); const pv=i>0?av[i-1]:'',nx=i<av.length-1?av[i+1]:''; return `<div class="mo-nav"><button class="mo-btn" ${pv?'':'disabled'} data-mo="${pv}">‹</button><span class="mo-cur">${curMonth}${curMonth===realMonth()?' · 이번달':''}</span><button class="mo-btn" ${nx?'':'disabled'} data-mo="${nx}">›</button></div>`; }
+function bindMonthNav(){ document.querySelectorAll('.mo-btn[data-mo]').forEach(b=>{ if(b.dataset.mo) b.onclick=()=>setMonth(b.dataset.mo); }); }
 
 /* ---------- render helpers ---------- */
 function envHTML(env){
@@ -403,11 +454,11 @@ function strengthHTML(day){
 }
 
 /* ---------- current day ---------- */
+function isRealMonth(){ return curMonth===realMonth(); }
 function todayN(){
-  const d=new Date(); const ym=rosterYM();
-  if(d.getFullYear()===ym.y && d.getMonth()===ym.mi) return d.getDate();
-  const maxD=Math.max.apply(null, ROSTER.days.map(x=>x.d));
-  return Math.min(d.getDate(), maxD);
+  const d=new Date();
+  if(isRealMonth()) return Math.min(d.getDate(), Math.max.apply(null, ROSTER.days.map(x=>x.d)));
+  return ROSTER.days[0].d;
 }
 function fmtToday(){
   const d=new Date(); const wd=DOW[d.getDay()];
@@ -416,33 +467,38 @@ function fmtToday(){
 
 /* ---------- views ---------- */
 function renderToday(){
-  const n=todayN(); const day=PLAN[n];
+  const real=isRealMonth(); const n=todayN(); const day=PLAN[n];
   const dow=DOW[new Date(rosterYM().y,rosterYM().mi,n).getDay()];
-  let html=`<div class="card"><h3>오늘 · ${rosterYM().mm}/${n} (${dow})</h3><div style="margin-bottom:10px">${dutyStrip(day)} <span class="chip ${day.carb==='high'?'high':'low'}" style="margin-left:6px">${day.carb==='high'?'고탄수':'저탄수'}</span>${day.strength?` <span class="chip str">근력 ${day.strength}</span>`:''}</div>${sessHTML(day,n)}${day.s.type!=='rest'&&!TIMER.steps?'<button class="btn" id="startsess" style="margin-top:10px">▶ 세션 타이머 시작</button>':''}${strengthHTML(day)}</div>`;
+  const d0=new Date();
+  let html=`<div class="card" style="padding:10px 12px 8px">${monthNavHTML()}${real?'':`<div class="muted" style="text-align:center;font-size:11px">이 달은 미리보기 · 오늘은 ${d0.getMonth()+1}/${d0.getDate()}</div>`}</div>`;
+  html+=`<div class="card"><h3>${real?'오늘 · ':''}${rosterYM().mm}/${n} (${dow})</h3><div style="margin-bottom:10px">${dutyStrip(day)} <span class="chip ${day.carb==='high'?'high':'low'}" style="margin-left:6px">${day.carb==='high'?'고탄수':'저탄수'}</span>${day.strength?` <span class="chip str">근력 ${day.strength}</span>`:''}</div>${sessHTML(day,n)}${day.s.type!=='rest'&&!TIMER.steps?'<button class="btn" id="startsess" style="margin-top:10px">▶ 세션 타이머 시작</button>':''}${strengthHTML(day)}</div>`;
   html+=timerHTML();
   // quick zones
   const z=zones(P);
   html+=`<div class="card"><h3>내 심박 존 (AT ${P.atHr} · AnT ${P.antHr})</h3>`+z.map(x=>`<div class="zone"><span class="zn">${x.n}</span><span class="bar" style="background:${x.c};width:${x.w}%"></span></div><div class="muted" style="margin:-4px 0 4px 106px;font-size:11px">${x.v} bpm · ${x.d}</div>`).join('')+`</div>`;
   document.getElementById('tab-today').innerHTML=html;
+  bindMonthNav();
   bindTimer(day);
 }
 function renderWeek(){
-  const cur=todayN();
-  let wi=WEEKS.findIndex(w=>w.days.includes(cur)); if(wi<0)wi=1;
+  const cur=isRealMonth()?todayN():-1;
+  let wi=WEEKS.findIndex(w=>w.days.includes(isRealMonth()?cur:ROSTER.days[0].d)); if(wi<0)wi=0;
   const nav=`<div class="wk-nav">${WEEKS.map((w,i)=>`<button class="${i===wi?'on':''}" data-wk="${i}">${w.l} · ${w.r}</button>`).join('')}</div>`;
   const body=WEEKS[wi].days.map(n=>{const day=PLAN[n];const dow=DOW[new Date(rosterYM().y,rosterYM().mi,n).getDay()];
     return `<div class="daycard ${n===cur?'today':''}"><div class="dh"><span class="dn">${n}<span class="dw">${dow}</span></span>${dutyStrip(day)}<span class="chip ${day.carb==='high'?'high':'low'}">${day.carb==='high'?'고탄':'저탄'}</span>${day.walk?'<span class="chip walk">걷기</span>':''}${day.strength?`<span class="chip str">근력 ${day.strength}</span>`:''}</div>${sessHTML(day,n)}${strengthHTML(day)}</div>`;
   }).join('');
-  document.getElementById('tab-week').innerHTML=`<div class="card" style="padding:12px 12px 4px">${nav}</div>${body}`;
+  document.getElementById('tab-week').innerHTML=`<div class="card" style="padding:12px 12px 4px">${monthNavHTML()}${nav}</div>${body}`;
+  bindMonthNav();
   document.querySelectorAll('[data-wk]').forEach(b=>b.onclick=()=>{renderWeekAt(+b.dataset.wk);});
 }
 function renderWeekAt(wi){
-  const cur=todayN();
+  const cur=isRealMonth()?todayN():-1;
   const nav=`<div class="wk-nav">${WEEKS.map((w,i)=>`<button class="${i===wi?'on':''}" data-wk="${i}">${w.l} · ${w.r}</button>`).join('')}</div>`;
   const body=WEEKS[wi].days.map(n=>{const day=PLAN[n];const dow=DOW[new Date(rosterYM().y,rosterYM().mi,n).getDay()];
     return `<div class="daycard ${n===cur?'today':''}"><div class="dh"><span class="dn">${n}<span class="dw">${dow}</span></span>${dutyStrip(day)}<span class="chip ${day.carb==='high'?'high':'low'}">${day.carb==='high'?'고탄':'저탄'}</span>${day.walk?'<span class="chip walk">걷기</span>':''}${day.strength?`<span class="chip str">근력 ${day.strength}</span>`:''}</div>${sessHTML(day,n)}${strengthHTML(day)}</div>`;
   }).join('');
-  document.getElementById('tab-week').innerHTML=`<div class="card" style="padding:12px 12px 4px">${nav}</div>${body}`;
+  document.getElementById('tab-week').innerHTML=`<div class="card" style="padding:12px 12px 4px">${monthNavHTML()}${nav}</div>${body}`;
+  bindMonthNav();
   document.querySelectorAll('[data-wk]').forEach(b=>b.onclick=()=>renderWeekAt(+b.dataset.wk));
 }
 function renderCalc(){
@@ -480,8 +536,8 @@ function renderSettings(){
       <div class="muted" style="font-size:11px;margin:2px 0 7px">밴드글루트브릿지 · 사이드킥백 · 레그컬 · 카프 · 와이드푸쉬업 · 데드벅</div>
       <div class="muted" style="font-size:11px">수동 지정: 로스터 해당 일에 <span style="font-family:var(--mono);color:var(--str)">"strength":"A"</span> · <span style="font-family:var(--mono);color:var(--str)">"B"</span> · <span style="font-family:var(--mono);color:var(--str)">"skip"</span> 추가 → 자동배치보다 우선.</div>
     </div>
-    <div class="card"><h2>로스터 (JSON) · 자동 생성</h2>
-      <div class="muted" style="margin-bottom:8px">로스터를 넣으면 세션·탄수·시간대·야외/실내·저녁/걷기 옵션 + <b>근력 A/B 배치</b>가 규칙 엔진으로 <b>자동 생성</b>돼. (hint: interval·threshold·long·easy·easyrec / override: strength:"A"·"B"·"skip")</div>
+    <div class="card"><h2>로스터 (JSON) · 월별 추가</h2>
+      <div class="muted" style="margin-bottom:8px">현재 <b id="rostermonths"></b> 저장됨. 아래는 <b>${curMonth}</b> 내용 — 편집 후 적용하면 그 달만 갱신돼. <b>다른 달 JSON</b>(<span style="font-family:var(--mono)">{"month":"2026-10",...}</span>)을 붙여넣고 적용하면 <b>새 달로 추가</b>되고 그 달로 이동해. (hint: interval·threshold·long·easy·easyrec / override: strength:"A"·"B"·"skip")</div>
       <textarea id="rosterjson" spellcheck="false" style="width:100%;height:150px;font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--card2);color:var(--ink);resize:vertical"></textarea>
       <button class="btn" id="applyroster" style="margin-top:8px">적용 &amp; 재생성</button>
       <button class="btn sec" id="resetroster" style="margin-top:8px">기본 로스터 복원</button>
@@ -510,16 +566,18 @@ function renderSettings(){
   };
   document.getElementById('reset').onclick=()=>{ P={...DEFAULT}; saveProfile(P); renderSettings(); renderToday(); };
   document.getElementById('rosterjson').value = JSON.stringify(ROSTER, null, 1);
+  { const el=document.getElementById('rostermonths'); if(el) el.textContent = monthsAvail().join(', '); }
   document.getElementById('applyroster').onclick=()=>{
     const msg=document.getElementById('rostermsg');
     try{
       const r=JSON.parse(document.getElementById('rosterjson').value);
       if(!r || !Array.isArray(r.days)) throw new Error('days[] 없음');
-      ROSTER=r; localStorage.setItem('shrc_roster', JSON.stringify(r)); regen();
-      msg.style.color='var(--easy)'; msg.textContent='적용됨 · 플랜 재생성 (오늘/주간 반영)';
+      if(!r.month || !/^\d{4}-\d{2}$/.test(r.month)) throw new Error('month "YYYY-MM" 필요');
+      ROSTERS[r.month]=r; saveRosters(); setMonth(r.month); renderSettings();
+      const m2=document.getElementById('rostermsg'); if(m2){ m2.style.color='var(--easy)'; m2.textContent=`${r.month} 적용됨 · 그 달로 이동 (저장된 달: ${monthsAvail().join(', ')})`; }
     }catch(e){ msg.style.color='var(--heat)'; msg.textContent='JSON 오류 — 형식 확인 ('+e.message+')'; }
   };
-  document.getElementById('resetroster').onclick=()=>{ ROSTER=DEFAULT_ROSTER; localStorage.removeItem('shrc_roster'); regen(); renderSettings(); };
+  document.getElementById('resetroster').onclick=()=>{ ROSTERS=JSON.parse(JSON.stringify(DEFAULT_ROSTERS)); saveRosters(); curMonth=pickCurMonth(); setMonth(curMonth); renderSettings(); };
   document.getElementById('wxbtn').onclick=fetchWeather;
   (async()=>{ const el=document.getElementById('swcache'); if(!el)return;
     try{ const ks=await caches.keys(); el.textContent = ks.length? ks.join(', ') : '없음(오프라인 미적용)'; }catch(e){ el.textContent='확인 불가'; } })();
@@ -685,7 +743,7 @@ async function fetchWeather(){
     const j=await (await fetch(url)).json();
     const map={}; (j.daily.time||[]).forEach((t,i)=>map[t]=Math.round(j.daily.temperature_2m_max[i]));
     let n=0; ROSTER.days.forEach(d=>{ const iso=`${ROSTER.month}-${String(d.d).padStart(2,'0')}`; if(map[iso]!=null){ d.heat=`낮 ${map[iso]}°C`; n++; } });
-    localStorage.setItem('shrc_roster',JSON.stringify(ROSTER)); regen();
+    ROSTERS[curMonth]=ROSTER; saveRosters(); regen(); renderToday();
     const ta=document.getElementById('rosterjson'); if(ta) ta.value=JSON.stringify(ROSTER,null,1);
     if(msg){msg.style.color='var(--easy)';msg.textContent=`날씨 ${n}일 반영 (수원 최고기온)`;}
   }catch(e){ if(msg){msg.style.color='var(--heat)';msg.textContent='실패 — 오프라인/차단 (heat 수동 유지)';} }
