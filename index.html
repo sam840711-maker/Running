@@ -148,7 +148,7 @@
 
 <script>
 /* ---------- app meta ---------- */
-const APP_VERSION='6.9';
+const APP_VERSION='6.10';
 const APP_BUILD='2026-08-31';
 
 /* ---------- storage ---------- */
@@ -188,9 +188,10 @@ function syncLog(n){ const k=dateKey(n), d=DONE[k]; removeLog(k); if(d&&d.status
 function markStatus(n,status){ const k=dateKey(n); DONE[k]=Object.assign(DONE[k]||{},{status}); saveDone(); syncLog(n); uiLog=false; uiEdit=false; renderToday(); }
 function clearStatus(n){ const k=dateKey(n); delete DONE[k]; saveDone(); removeLog(k); renderToday(); }
 function saveActual(n,data){ const k=dateKey(n); DONE[k]=Object.assign(DONE[k]||{},{status:'done'},data); saveDone(); syncLog(n); uiLog=false; renderToday(); }
-function setDayType(n,hint){ const d=ROSTER.days.find(x=>x.d===n); if(!d)return; d.hint=hint; ROSTERS[curMonth]=ROSTER; saveRosters(); uiEdit=false; recompute(); renderToday(); }
+function setDayType(n,hint){ const d=ROSTER.days.find(x=>x.d===n); if(!d)return; d.force=hint; ROSTERS[curMonth]=ROSTER; saveRosters(); uiEdit=false; recompute(); viewDay=n; renderToday(); }
+function resetDayType(n){ const d=ROSTER.days.find(x=>x.d===n); if(!d)return; delete d.force; ROSTERS[curMonth]=ROSTER; saveRosters(); uiEdit=false; recompute(); viewDay=n; renderToday(); }
 function deferDay(n){ const cur=ROSTER.days.find(x=>x.d===n), nx=ROSTER.days.find(x=>x.d===n+1); if(!cur||!nx)return;
-  const map={tread:'easy',easy:'easy',long:'long',threshold:'threshold',interval:'interval',rest:'rest'}; nx.hint=map[planType(n)]||'easy'; cur.hint='easyrec';
+  const map={tread:'tread',easy:'easy',long:'long',threshold:'threshold',interval:'interval',rest:'rest'}; nx.force=map[planType(n)]||'easy'; cur.force='easyrec';
   ROSTERS[curMonth]=ROSTER; saveRosters(); recompute(); viewDay=n+1; renderToday(); }
 const EDIT_TYPES=[['easy','이지'],['easyrec','회복'],['threshold','템포'],['interval','인터벌'],['long','롱런'],['rest','휴식']];
 function statusBanner(n){ const d=DONE[dateKey(n)]; if(!d||!d.status) return '';
@@ -204,8 +205,9 @@ function logForm(n){ if(!uiLog) return ''; const d=DONE[dateKey(n)]||{};
   return `<div class="qform"><div class="row"><div class="fld"><label>거리 km</label><input id="q_km" inputmode="decimal" value="${d.km||''}"></div><div class="fld"><label>시간 분</label><input id="q_min" inputmode="decimal" value="${d.min||''}"></div></div>
     <div class="row"><div class="fld"><label>평균 HR</label><input id="q_hr" inputmode="numeric" value="${d.avgHr||''}"></div><div class="fld"><label>케이던스</label><input id="q_cad" inputmode="numeric" value="${d.cadence||''}"></div><div class="fld"><label>RPE 1–10</label><input id="q_rpe" inputmode="numeric" value="${d.rpe||''}"></div></div>
     <button class="btn" data-savelog="${n}" style="margin-top:2px">완료로 저장</button></div>`; }
-function typePicker(n){ if(!uiEdit) return ''; const cur=planType(n); const curH=cur==='tread'?'easy':cur;
-  return `<div class="qform"><div class="muted" style="margin-bottom:7px">이 날 세션 바꾸기 (OFF/예비일에서 가장 잘 적용)</div><div class="tpick">${EDIT_TYPES.map(([h,l])=>`<button class="tp ${curH===h?'on':''}" data-type="${n}:${h}">${l}</button>`).join('')}</div></div>`; }
+function typePicker(n){ if(!uiEdit) return ''; const d=ROSTER.days.find(x=>x.d===n); const forced=d&&d.force;
+  const cur=forced||planType(n); const curH=cur==='tread'?'easy':cur;
+  return `<div class="qform"><div class="muted" style="margin-bottom:7px">이 날 세션 바꾸기 — 근무일 상관없이 강제 적용${forced?' · <b style="color:var(--accent)">수동 지정됨</b>':''}</div><div class="tpick">${EDIT_TYPES.map(([h,l])=>`<button class="tp ${curH===h?'on':''}" data-type="${n}:${h}">${l}</button>`).join('')}</div>${forced?`<button class="btn sec" data-resettype="${n}" style="margin-top:8px">↺ 자동 배치로 되돌리기</button>`:''}</div>`; }
 function bindDayActions(){
   document.querySelectorAll('[data-log]').forEach(b=>b.onclick=()=>{uiLog=!uiLog;uiEdit=false;renderToday();});
   document.querySelectorAll('[data-skip]').forEach(b=>b.onclick=()=>markStatus(+b.dataset.skip,'skip'));
@@ -213,6 +215,7 @@ function bindDayActions(){
   document.querySelectorAll('[data-defer]').forEach(b=>b.onclick=()=>deferDay(+b.dataset.defer));
   document.querySelectorAll('[data-undo]').forEach(b=>b.onclick=()=>clearStatus(+b.dataset.undo));
   document.querySelectorAll('[data-type]').forEach(b=>b.onclick=()=>{const[n,h]=b.dataset.type.split(':');setDayType(+n,h);});
+  document.querySelectorAll('[data-resettype]').forEach(b=>b.onclick=()=>resetDayType(+b.dataset.resettype));
   document.querySelectorAll('[data-savelog]').forEach(b=>b.onclick=()=>{const n=+b.dataset.savelog,g=id=>document.getElementById(id).value;
     saveActual(n,{km:parseFloat(g('q_km'))||null,min:parseFloat(g('q_min'))||null,avgHr:parseInt(g('q_hr'))||null,cadence:parseInt(g('q_cad'))||null,rpe:parseInt(g('q_rpe'))||null});});
 }
@@ -398,6 +401,20 @@ function homeEnv(day, hardNext, kind){
 function genDay(days,i){
   const day=days[i], hardNext=isHardNext(days,i);
   const o={ dt:day.kind, duty:day.label, opt:day.opt||0, walk:false, strengthForce:day.strength||null };
+  // 사용자 강제 지정(force): 근무 종류와 무관하게 이 세션으로 (일정 변경 버튼)
+  if(day.force){
+    const F=day.force;
+    if(F==='rest'){ o.carb='rec'; o.s={type:'rest',reason:day.reason||'휴식'}; }
+    else if(F==='interval'){ o.s={type:'interval',reps:day.reps||5}; o.carb='high'; }
+    else if(F==='threshold'){ o.s={type:'threshold'}; o.carb='high'; }
+    else if(F==='long'){ o.s={type:'long'}; o.carb='high'; }
+    else if(F==='easyrec'){ o.s={type:'easy',km:5,rec:1}; o.carb='low'; }
+    else if(F==='tread'){ o.s={type:'tread',km:6}; o.carb='low'; }
+    else { o.s={type:'easy',km:6}; o.carb='low'; }
+    o.env = (day.kind==='off'||day.kind==='reserve') ? homeEnv(day,hardNext,o.s.type)
+          : [day.kind==='layover'?'자유 (실내)':'직접 지정','either','',day.heat||'','수동 변경됨'];
+    o.forced=true; return o;
+  }
   if(day.kind==='off'){
     const h=day.hint||'easy';
     if(h==='rest'){ o.carb='rec'; o.s={type:'rest',reason:day.reason||'휴식'}; return o; }
