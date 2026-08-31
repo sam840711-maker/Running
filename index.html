@@ -171,7 +171,7 @@
 
 <script>
 /* ---------- app meta ---------- */
-const APP_VERSION='6.11';
+const APP_VERSION='6.13';
 const APP_BUILD='2026-08-31';
 
 /* ---------- storage ---------- */
@@ -682,7 +682,7 @@ function renderToday(){
     +sessHTML(day,n)+`</div>`
     +routineHTML(n)
     +`<div class="card" style="margin-top:-4px">`
-    +(day.s.type!=='rest'&&!TIMER.steps?'<button class="btn" id="startsess" style="margin-top:10px">▶ 세션 타이머 시작</button>':'')
+    +(day.s.type!=='rest'&&!TIMER.steps?`<div class="row" style="margin-top:10px"><button class="btn" id="startsess" style="flex:1;margin:0">▶ 세션 타이머 시작</button><button class="btn sec" id="tvoice" style="flex:none;width:auto;margin:0;padding:12px 14px;color:${VOICE_ON?'var(--accent)':'var(--ink-faint)'}" title="음성 안내">${VOICE_ON?'🔊':'🔇'}</button></div>`:'')
     +strengthHTML(day)
     +actionBar(n)+logForm(n)+typePicker(n)
     +`<div class="swipehint">← 좌우로 넘겨 하루씩 이동 →</div></div>`;
@@ -917,6 +917,16 @@ function analyticsHTML(){
 /* ---------- session timer (structured steps) ---------- */
 function stepsFor(day){ const rt=getRoutine(viewDay); return rt? flatten(rt) : null; }
 let TIMER={steps:null,i:0,left:0,run:false,h:null};
+/* ---------- 음성 안내 (Web Speech API, ko-KR) ---------- */
+let VOICE_ON = localStorage.getItem('shrc_voice')!=='0';
+function speak(text){ if(!VOICE_ON) return; try{ if(!('speechSynthesis' in window)) return; speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text); u.lang='ko-KR'; u.rate=1.0; u.pitch=1.0;
+  const v=(speechSynthesis.getVoices()||[]).find(v=>/^ko/i.test(v.lang)); if(v) u.voice=v;
+  speechSynthesis.speak(u); }catch(e){} }
+function durSpeech(sec){ const m=Math.floor(sec/60), r=Math.round(sec%60); return (m?`${m}분`:'')+(r?` ${r}초`:''); }
+function stepSpeech(st){ const kmh=st.kmh!=null? `, 시속 ${String(st.kmh).replace(/\.0$/,'')}킬로` : ''; return `${st.n}${kmh}, ${durSpeech(st.sec).trim()}`; }
+function toggleVoice(){ VOICE_ON=!VOICE_ON; localStorage.setItem('shrc_voice',VOICE_ON?'1':'0'); if(VOICE_ON) speak('음성 안내 켜짐'); renderToday(); }
+try{ if('speechSynthesis' in window) speechSynthesis.onvoiceschanged=()=>{}; }catch(e){}
 function timerHTML(){
   if(!TIMER.steps) return '';
   const s=TIMER.steps[TIMER.i], mm=String(Math.floor(TIMER.left/60)).padStart(2,'0'), ss=String(Math.max(0,TIMER.left%60)).padStart(2,'0');
@@ -926,7 +936,7 @@ function timerHTML(){
       <div class="muted" style="font-family:var(--mono)">${s.sp}</div></div>
     <div class="row"><button class="btn" id="tgo" style="flex:1">${TIMER.run?'일시정지':'시작'}</button>
       <button class="btn sec" id="tnext" style="flex:1">다음 ▸</button></div>
-    <button class="btn sec" id="tstop" style="margin-top:8px">종료</button></div>`;
+    <div class="row" style="margin-top:8px"><button class="btn sec" id="tstop" style="flex:1;margin:0">종료</button><button class="btn sec" id="tvoice" style="flex:1;margin:0;color:${VOICE_ON?'var(--accent)':'var(--ink-faint)'}">${VOICE_ON?'🔊 음성 켬':'🔇 음성 끔'}</button></div></div>`;
 }
 function bindTimer(day){
   const go=document.getElementById('tgo');
@@ -936,10 +946,11 @@ function bindTimer(day){
     document.getElementById('tstop').onclick=()=>{ clearInterval(TIMER.h); TIMER={steps:null,i:0,left:0,run:false,h:null}; renderToday(); };
   }
   const sb=document.getElementById('startsess'); if(sb) sb.onclick=()=>startTimer(day);
+  const tv=document.getElementById('tvoice'); if(tv) tv.onclick=toggleVoice;
 }
-function nextStep(){ if(!TIMER.steps) return; if(TIMER.i<TIMER.steps.length-1){ TIMER.i++; TIMER.left=TIMER.steps[TIMER.i].sec; } else { TIMER.run=false; clearInterval(TIMER.h); TIMER.steps=null; } }
-function tick(){ clearInterval(TIMER.h); TIMER.h=setInterval(()=>{ if(!TIMER.run||!TIMER.steps){clearInterval(TIMER.h);return;} TIMER.left--; if(TIMER.left<=0){ try{navigator.vibrate&&navigator.vibrate(400);}catch(e){} nextStep(); } renderToday(); },1000); }
-function startTimer(day){ const st=stepsFor(day); if(!st) return; TIMER={steps:st,i:0,left:st[0].sec,run:true,h:null}; tick(); renderToday(); }
+function nextStep(){ if(!TIMER.steps) return; if(TIMER.i<TIMER.steps.length-1){ TIMER.i++; TIMER.left=TIMER.steps[TIMER.i].sec; TIMER.w10=false; speak(stepSpeech(TIMER.steps[TIMER.i])); } else { TIMER.run=false; clearInterval(TIMER.h); TIMER.steps=null; speak('세션 완료. 수고했습니다.'); } }
+function tick(){ clearInterval(TIMER.h); TIMER.h=setInterval(()=>{ if(!TIMER.run||!TIMER.steps){clearInterval(TIMER.h);return;} TIMER.left--; { const st=TIMER.steps[TIMER.i], el=st.sec-TIMER.left; if(el>0 && el%300===0 && TIMER.left>10){ speak(`${durSpeech(TIMER.left).trim()} 남았습니다`); } } if(TIMER.left===10 && !TIMER.w10 && TIMER.steps[TIMER.i].sec>15){ TIMER.w10=true; const nx=TIMER.steps[TIMER.i+1]; speak(nx? `10초 후 ${nx.n}${nx.kmh!=null?', 시속 '+String(nx.kmh).replace(/\.0$/,'')+'킬로':''}` : '10초 후 종료'); } if(TIMER.left<=0){ try{navigator.vibrate&&navigator.vibrate(400);}catch(e){} nextStep(); } renderToday(); },1000); }
+function startTimer(day){ const st=stepsFor(day); if(!st) return; TIMER={steps:st,i:0,left:st[0].sec,run:true,h:null,w10:false}; speak('세션 시작. '+stepSpeech(st[0])); tick(); renderToday(); }
 
 async function fetchWeather(){
   const msg=document.getElementById('wxmsg'); if(msg){msg.style.color='var(--ink-soft)';msg.textContent='불러오는 중…';}
