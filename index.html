@@ -171,7 +171,7 @@
 
 <script>
 /* ---------- app meta ---------- */
-const APP_VERSION='6.13';
+const APP_VERSION='6.14';
 const APP_BUILD='2026-08-31';
 
 /* ---------- storage ---------- */
@@ -916,7 +916,14 @@ function analyticsHTML(){
 }
 /* ---------- session timer (structured steps) ---------- */
 function stepsFor(day){ const rt=getRoutine(viewDay); return rt? flatten(rt) : null; }
-let TIMER={steps:null,i:0,left:0,run:false,h:null};
+let TIMER={steps:null,i:0,left:0,run:false,h:null,endAt:0,w10:false,annB:0};
+/* Wake Lock — 타이머 중 화면 꺼짐 방지 */
+let WAKE=null;
+async function wakeOn(){ try{ if('wakeLock' in navigator && !WAKE){ WAKE=await navigator.wakeLock.request('screen'); WAKE.addEventListener('release',()=>{WAKE=null;}); } }catch(e){} }
+function wakeOff(){ try{ if(WAKE){ WAKE.release(); WAKE=null; } }catch(e){} }
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible' && TIMER.steps && TIMER.run){ wakeOn(); tick(); renderToday(); } });
+function setStep(i){ TIMER.i=i; TIMER.left=TIMER.steps[i].sec; TIMER.endAt=Date.now()+TIMER.left*1000; TIMER.w10=false; TIMER.annB=0; }
+function finishTimer(){ TIMER.run=false; clearInterval(TIMER.h); TIMER.steps=null; wakeOff(); }
 /* ---------- 음성 안내 (Web Speech API, ko-KR) ---------- */
 let VOICE_ON = localStorage.getItem('shrc_voice')!=='0';
 function speak(text){ if(!VOICE_ON) return; try{ if(!('speechSynthesis' in window)) return; speechSynthesis.cancel();
@@ -941,16 +948,25 @@ function timerHTML(){
 function bindTimer(day){
   const go=document.getElementById('tgo');
   if(go){
-    go.onclick=()=>{ TIMER.run=!TIMER.run; if(TIMER.run) tick(); renderToday(); };
+    go.onclick=()=>{ TIMER.run=!TIMER.run; if(TIMER.run){ TIMER.endAt=Date.now()+TIMER.left*1000; wakeOn(); tick(); } renderToday(); };
     document.getElementById('tnext').onclick=()=>{ nextStep(); renderToday(); };
-    document.getElementById('tstop').onclick=()=>{ clearInterval(TIMER.h); TIMER={steps:null,i:0,left:0,run:false,h:null}; renderToday(); };
+    document.getElementById('tstop').onclick=()=>{ finishTimer(); TIMER={steps:null,i:0,left:0,run:false,h:null,endAt:0,w10:false,annB:0}; renderToday(); };
   }
   const sb=document.getElementById('startsess'); if(sb) sb.onclick=()=>startTimer(day);
   const tv=document.getElementById('tvoice'); if(tv) tv.onclick=toggleVoice;
 }
-function nextStep(){ if(!TIMER.steps) return; if(TIMER.i<TIMER.steps.length-1){ TIMER.i++; TIMER.left=TIMER.steps[TIMER.i].sec; TIMER.w10=false; speak(stepSpeech(TIMER.steps[TIMER.i])); } else { TIMER.run=false; clearInterval(TIMER.h); TIMER.steps=null; speak('세션 완료. 수고했습니다.'); } }
-function tick(){ clearInterval(TIMER.h); TIMER.h=setInterval(()=>{ if(!TIMER.run||!TIMER.steps){clearInterval(TIMER.h);return;} TIMER.left--; { const st=TIMER.steps[TIMER.i], el=st.sec-TIMER.left; if(el>0 && el%300===0 && TIMER.left>10){ speak(`${durSpeech(TIMER.left).trim()} 남았습니다`); } } if(TIMER.left===10 && !TIMER.w10 && TIMER.steps[TIMER.i].sec>15){ TIMER.w10=true; const nx=TIMER.steps[TIMER.i+1]; speak(nx? `10초 후 ${nx.n}${nx.kmh!=null?', 시속 '+String(nx.kmh).replace(/\.0$/,'')+'킬로':''}` : '10초 후 종료'); } if(TIMER.left<=0){ try{navigator.vibrate&&navigator.vibrate(400);}catch(e){} nextStep(); } renderToday(); },1000); }
-function startTimer(day){ const st=stepsFor(day); if(!st) return; TIMER={steps:st,i:0,left:st[0].sec,run:true,h:null,w10:false}; speak('세션 시작. '+stepSpeech(st[0])); tick(); renderToday(); }
+function nextStep(){ if(!TIMER.steps) return; if(TIMER.i<TIMER.steps.length-1){ setStep(TIMER.i+1); speak(stepSpeech(TIMER.steps[TIMER.i])); } else { finishTimer(); speak('세션 완료. 수고했습니다.'); } }
+function tick(){ clearInterval(TIMER.h); TIMER.h=setInterval(()=>{ if(!TIMER.run||!TIMER.steps){clearInterval(TIMER.h);return;}
+  let left=Math.ceil((TIMER.endAt-Date.now())/1000);
+  while(left<=0 && TIMER.steps){ const over=-left; try{navigator.vibrate&&navigator.vibrate(400);}catch(e){}
+    if(TIMER.i<TIMER.steps.length-1){ setStep(TIMER.i+1); TIMER.endAt-=over*1000; left=Math.ceil((TIMER.endAt-Date.now())/1000); speak(stepSpeech(TIMER.steps[TIMER.i])); }
+    else { finishTimer(); speak('세션 완료. 수고했습니다.'); renderToday(); return; } }
+  TIMER.left=left;
+  const st=TIMER.steps[TIMER.i], el=st.sec-left, bk=Math.floor(el/300);
+  if(bk>=1 && bk!==TIMER.annB && left>10){ TIMER.annB=bk; speak(`${durSpeech(left).trim()} 남았습니다`); }
+  if(left<=10 && !TIMER.w10 && st.sec>15){ TIMER.w10=true; const nx=TIMER.steps[TIMER.i+1]; speak(nx? `10초 후 ${nx.n}${nx.kmh!=null?', 시속 '+String(nx.kmh).replace(/\.0$/,'')+'킬로':''}` : '10초 후 종료'); }
+  renderToday(); },1000); }
+function startTimer(day){ const st=stepsFor(day); if(!st) return; TIMER={steps:st,i:0,left:st[0].sec,run:true,h:null,endAt:Date.now()+st[0].sec*1000,w10:false,annB:0}; wakeOn(); speak('세션 시작. '+stepSpeech(st[0])); tick(); renderToday(); }
 
 async function fetchWeather(){
   const msg=document.getElementById('wxmsg'); if(msg){msg.style.color='var(--ink-soft)';msg.textContent='불러오는 중…';}
