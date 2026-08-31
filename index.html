@@ -101,6 +101,26 @@
   .mo-nav .mo-btn:disabled{opacity:.3;cursor:default;}
   .mo-nav .mo-cur{font-weight:700;font-size:14px;min-width:130px;text-align:center;letter-spacing:.3px;}
   .day-nav{display:flex;align-items:center;gap:8px;}
+  /* status / actions / quick-forms (Phase 5) */
+  .daytitle{font-size:16px;font-weight:800;letter-spacing:-.01em;text-align:center;flex:1;}
+  .daytitle .td{color:var(--accent);font-size:12px;font-weight:800;margin-left:6px;}
+  .stbar{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:800;border-radius:10px;padding:9px 12px;margin:11px 0 2px;}
+  .stbar.done{background:var(--easy-bg);color:#7CD6A8;border:1px solid #2C5540;}
+  .stbar.skip{background:#2A2030;color:#C99AB5;border:1px solid #4A3348;}
+  .stbar .stundo{margin-left:auto;font-size:11px;font-weight:700;color:var(--ink-soft);background:transparent;border:1px solid var(--line);border-radius:7px;padding:4px 10px;cursor:pointer;}
+  .actbar{display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:7px;margin-top:11px;}
+  .actbar .act{font-size:12px;font-weight:800;color:var(--ink);background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px 6px;cursor:pointer;}
+  .actbar .act:active{transform:scale(.97);}
+  .actbar .act.pri{color:#08120C;background:var(--easy);border-color:var(--easy);}
+  .qform{background:var(--card2);border:1px solid var(--line);border-radius:11px;padding:11px 12px;margin-top:9px;}
+  .qform .row{gap:8px;} .qform .fld{margin-bottom:8px;}
+  .tpick{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;}
+  .tpick .tp{font-size:12.5px;font-weight:800;color:var(--ink-soft);background:var(--card);border:1px solid var(--line);border-radius:9px;padding:10px 4px;cursor:pointer;}
+  .tpick .tp.on{color:#0B1220;background:var(--accent);border-color:var(--accent);}
+  .bd.hero{padding:4px 0;} .bd.hero .v{font-size:13.5px;} .bd.hero .v b{color:var(--ink);}
+  .bd.hero .l{color:var(--ink-soft);}
+  .swipehint{text-align:center;font-size:10px;color:var(--ink-faint);margin-top:10px;letter-spacing:.02em;}
+  .wk-done{color:#5FC79A;font-weight:800;} .wk-skip{color:#C99AB5;font-weight:800;}
   .hide{display:none;}
 </style>
 </head>
@@ -128,8 +148,8 @@
 
 <script>
 /* ---------- app meta ---------- */
-const APP_VERSION='6.8';
-const APP_BUILD='2026-08-10';
+const APP_VERSION='6.9';
+const APP_BUILD='2026-08-31';
 
 /* ---------- storage ---------- */
 const DEFAULT = {
@@ -155,6 +175,47 @@ function saveLogs(a){ localStorage.setItem('shrc_logs',JSON.stringify(a)); }
 function loadWeights(){ try{return JSON.parse(localStorage.getItem('shrc_weights')||'[]');}catch(e){return[];} }
 function saveWeights(a){ localStorage.setItem('shrc_weights',JSON.stringify(a)); }
 let LOGS=loadLogs(), WEIGHTS=loadWeights();
+/* ---------- Phase 5 · session done / actual log ---------- */
+function loadDone(){ try{return JSON.parse(localStorage.getItem('shrc_done')||'{}');}catch(e){return {};} }
+function saveDone(){ localStorage.setItem('shrc_done', JSON.stringify(DONE)); }
+let DONE=loadDone();
+let uiLog=false, uiEdit=false;
+function dateKey(n){ const y=rosterYM(); return `${y.y}-${String(y.mm).padStart(2,'0')}-${String(n).padStart(2,'0')}`; }
+function planType(n){ const t=(PLAN[n]&&PLAN[n].s)?PLAN[n].s.type:'easy'; return t; }
+function removeLog(k){ const i=LOGS.findIndex(l=>l.pd===k); if(i>=0){ LOGS.splice(i,1); saveLogs(LOGS); } }
+function syncLog(n){ const k=dateKey(n), d=DONE[k]; removeLog(k); if(d&&d.status==='done'&&(d.km||d.min||d.avgHr)){
+    LOGS.push({date:k,pd:k,type:planType(n),km:d.km||null,min:d.min||null,avgHr:d.avgHr||null,maxHr:d.maxHr||null,cadence:d.cadence||null,kcal:d.kcal||null,rpe:d.rpe||null}); saveLogs(LOGS); } }
+function markStatus(n,status){ const k=dateKey(n); DONE[k]=Object.assign(DONE[k]||{},{status}); saveDone(); syncLog(n); uiLog=false; uiEdit=false; renderToday(); }
+function clearStatus(n){ const k=dateKey(n); delete DONE[k]; saveDone(); removeLog(k); renderToday(); }
+function saveActual(n,data){ const k=dateKey(n); DONE[k]=Object.assign(DONE[k]||{},{status:'done'},data); saveDone(); syncLog(n); uiLog=false; renderToday(); }
+function setDayType(n,hint){ const d=ROSTER.days.find(x=>x.d===n); if(!d)return; d.hint=hint; ROSTERS[curMonth]=ROSTER; saveRosters(); uiEdit=false; recompute(); renderToday(); }
+function deferDay(n){ const cur=ROSTER.days.find(x=>x.d===n), nx=ROSTER.days.find(x=>x.d===n+1); if(!cur||!nx)return;
+  const map={tread:'easy',easy:'easy',long:'long',threshold:'threshold',interval:'interval',rest:'rest'}; nx.hint=map[planType(n)]||'easy'; cur.hint='easyrec';
+  ROSTERS[curMonth]=ROSTER; saveRosters(); recompute(); viewDay=n+1; renderToday(); }
+const EDIT_TYPES=[['easy','이지'],['easyrec','회복'],['threshold','템포'],['interval','인터벌'],['long','롱런'],['rest','휴식']];
+function statusBanner(n){ const d=DONE[dateKey(n)]; if(!d||!d.status) return '';
+  if(d.status==='done'){ const parts=[d.km?d.km+'km':'',d.min?d.min+'분':'',d.avgHr?d.avgHr+'bpm':'',d.cadence?d.cadence+'spm':'',d.rpe?'RPE '+d.rpe:''].filter(Boolean);
+    return `<div class="stbar done">✓ 완료${parts.length?' · '+parts.join(' · '):''}<button class="stundo" data-undo="${n}">되돌리기</button></div>`; }
+  return `<div class="stbar skip">⤫ 건너뜀<button class="stundo" data-undo="${n}">되돌리기</button></div>`; }
+function actionBar(n){ const d=DONE[dateKey(n)]; if(d&&d.status) return '';
+  const canDefer=ROSTER.days.some(x=>x.d===n+1);
+  return `<div class="actbar"><button class="act pri" data-log="${n}">✓ 완료</button><button class="act" data-skip="${n}">⤫ 건너뜀</button><button class="act" data-edit="${n}">✎ 변경</button>${canDefer?`<button class="act" data-defer="${n}">→ 내일로</button>`:''}</div>`; }
+function logForm(n){ if(!uiLog) return ''; const d=DONE[dateKey(n)]||{};
+  return `<div class="qform"><div class="row"><div class="fld"><label>거리 km</label><input id="q_km" inputmode="decimal" value="${d.km||''}"></div><div class="fld"><label>시간 분</label><input id="q_min" inputmode="decimal" value="${d.min||''}"></div></div>
+    <div class="row"><div class="fld"><label>평균 HR</label><input id="q_hr" inputmode="numeric" value="${d.avgHr||''}"></div><div class="fld"><label>케이던스</label><input id="q_cad" inputmode="numeric" value="${d.cadence||''}"></div><div class="fld"><label>RPE 1–10</label><input id="q_rpe" inputmode="numeric" value="${d.rpe||''}"></div></div>
+    <button class="btn" data-savelog="${n}" style="margin-top:2px">완료로 저장</button></div>`; }
+function typePicker(n){ if(!uiEdit) return ''; const cur=planType(n); const curH=cur==='tread'?'easy':cur;
+  return `<div class="qform"><div class="muted" style="margin-bottom:7px">이 날 세션 바꾸기 (OFF/예비일에서 가장 잘 적용)</div><div class="tpick">${EDIT_TYPES.map(([h,l])=>`<button class="tp ${curH===h?'on':''}" data-type="${n}:${h}">${l}</button>`).join('')}</div></div>`; }
+function bindDayActions(){
+  document.querySelectorAll('[data-log]').forEach(b=>b.onclick=()=>{uiLog=!uiLog;uiEdit=false;renderToday();});
+  document.querySelectorAll('[data-skip]').forEach(b=>b.onclick=()=>markStatus(+b.dataset.skip,'skip'));
+  document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{uiEdit=!uiEdit;uiLog=false;renderToday();});
+  document.querySelectorAll('[data-defer]').forEach(b=>b.onclick=()=>deferDay(+b.dataset.defer));
+  document.querySelectorAll('[data-undo]').forEach(b=>b.onclick=()=>clearStatus(+b.dataset.undo));
+  document.querySelectorAll('[data-type]').forEach(b=>b.onclick=()=>{const[n,h]=b.dataset.type.split(':');setDayType(+n,h);});
+  document.querySelectorAll('[data-savelog]').forEach(b=>b.onclick=()=>{const n=+b.dataset.savelog,g=id=>document.getElementById(id).value;
+    saveActual(n,{km:parseFloat(g('q_km'))||null,min:parseFloat(g('q_min'))||null,avgHr:parseInt(g('q_hr'))||null,cadence:parseInt(g('q_cad'))||null,rpe:parseInt(g('q_rpe'))||null});});
+}
 
 /* ---------- calc module ---------- */
 const kmh = sec => (sec>0 && isFinite(sec)) ? (3600/sec).toFixed(1) : '–';
@@ -380,7 +441,7 @@ function monthsAvail(){ return Object.keys(ROSTERS).sort(); }
 function realMonth(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
 function pickCurMonth(){ const sv=localStorage.getItem('shrc_curmonth'); const av=monthsAvail(); if(sv&&ROSTERS[sv])return sv; if(ROSTERS[realMonth()])return realMonth(); return av[av.length-1]||'2026-09'; }
 function saveRosters(){ localStorage.setItem('shrc_rosters', JSON.stringify(ROSTERS)); }
-function setMonth(ym){ if(!ROSTERS[ym])return; curMonth=ym; localStorage.setItem('shrc_curmonth',ym); ROSTER=ROSTERS[ym]; recompute(); viewDay=(curMonth===realMonth()?todayN():dayMin()); const a=document.querySelector('.tabbar .on'); const t=a?a.dataset.tab:'week'; show(t); }
+function setMonth(ym){ if(!ROSTERS[ym])return; uiLog=false; uiEdit=false; curMonth=ym; localStorage.setItem('shrc_curmonth',ym); ROSTER=ROSTERS[ym]; recompute(); viewDay=(curMonth===realMonth()?todayN():dayMin()); const a=document.querySelector('.tabbar .on'); const t=a?a.dataset.tab:'week'; show(t); }
 function rosterYM(){ const p=((ROSTER&&ROSTER.month)?ROSTER.month:'2026-09').split('-'); return {y:+p[0], mi:(+p[1])-1, mm:+p[1]}; }
 function buildWeeks(){ const ym=rosterYM(); const ds=ROSTER.days.map(x=>x.d).slice().sort((a,b)=>a-b); const weeks=[]; let cur=null;
   ds.forEach(n=>{ const dow=new Date(ym.y,ym.mi,n).getDay(); if(cur===null||dow===0){ cur={days:[]}; weeks.push(cur);} cur.days.push(n); });
@@ -443,12 +504,13 @@ function dayMin(){ return Math.min.apply(null, ROSTER.days.map(x=>x.d)); }
 function dayMax(){ return Math.max.apply(null, ROSTER.days.map(x=>x.d)); }
 function clampDay(d){ return Math.max(dayMin(), Math.min(dayMax(), d)); }
 function shiftDay(dir){
+  uiLog=false; uiEdit=false;
   const av=monthsAvail(), i=av.indexOf(curMonth); let nd=(viewDay||todayN())+dir;
   if(nd<dayMin() && i>0){ curMonth=av[i-1]; localStorage.setItem('shrc_curmonth',curMonth); ROSTER=ROSTERS[curMonth]; recompute(); viewDay=dayMax(); renderToday(); return; }
   if(nd>dayMax() && i<av.length-1){ curMonth=av[i+1]; localStorage.setItem('shrc_curmonth',curMonth); ROSTER=ROSTERS[curMonth]; recompute(); viewDay=dayMin(); renderToday(); return; }
   viewDay=clampDay(nd); renderToday();
 }
-function goToday(){ const rm=realMonth(); if(ROSTERS[rm] && curMonth!==rm){ curMonth=rm; localStorage.setItem('shrc_curmonth',rm); ROSTER=ROSTERS[rm]; recompute(); } viewDay=todayN(); renderToday(); }
+function goToday(){ uiLog=false; uiEdit=false; const rm=realMonth(); if(ROSTERS[rm] && curMonth!==rm){ curMonth=rm; localStorage.setItem('shrc_curmonth',rm); ROSTER=ROSTERS[rm]; recompute(); } viewDay=todayN(); renderToday(); }
 function bindSwipe(){ const el=document.getElementById('tab-today'); if(!el) return; let sx=0,sy=0,tr=false;
   el.ontouchstart=e=>{ if(e.touches.length!==1){tr=false;return;} sx=e.touches[0].clientX; sy=e.touches[0].clientY; tr=true; };
   el.ontouchend=e=>{ if(!tr)return; tr=false; const t=e.changedTouches[0]; const dx=t.clientX-sx, dy=t.clientY-sy; if(Math.abs(dx)>50 && Math.abs(dx)>Math.abs(dy)*1.5){ shiftDay(dx<0?1:-1); } }; }
@@ -468,7 +530,7 @@ function sessHTML(day, n){
   if(b.kind==='rest'){
     return `<div class="sess k-rest"><div class="rest-line"><b>휴식 / 회복</b> · ${b.reason}</div>${day.walk?'<div style="margin-top:6px"><span class="chip walk">걷기 옵션</span></div>':''}<div class="nut ${day.carb==='high'?'high':'low'}"><span class="nn">${NUT[day.carb]}</span></div></div>`;
   }
-  const rows=b.bd.map(([l,v])=>`<div class="bd"><span class="l">${l}</span><span class="v">${v}</span></div>`).join('');
+  const rows=b.bd.map(([l,v])=>`<div class="bd${l==='메인'?' hero':''}"><span class="l">${l}</span><span class="v">${v}</span></div>`).join('');
   return `<div class="sess k-${b.kind}"><div class="sess-head"><span class="sess-tag">${b.head}${day.opt?' <span class="chip" style="background:var(--qual-bg);color:var(--qual)">선택</span>':''}</span><span class="sess-meta">${b.meta}</span></div>${envHTML(day.env)}${rows}<div class="nut ${day.carb==='high'?'high':'low'}"><span class="nn">${NUT[day.carb]}</span></div></div>`;
 }
 function dutyStrip(day){ return `<span class="strip ${day.dt}"><i></i>${day.duty}</span>`; }
@@ -507,7 +569,16 @@ function renderToday(){
   const dow=DOW[new Date(rosterYM().y,rosterYM().mi,n).getDay()];
   const d0=new Date();
   let html=`<div class="card" style="padding:10px 12px 8px">${monthNavHTML()}${real?'':`<div class="muted" style="text-align:center;font-size:11px">이 달은 미리보기 · 오늘은 ${d0.getMonth()+1}/${d0.getDate()}</div>`}</div>`;
-  html+=`<div class="card"><div class="day-nav"><button class="mo-btn" id="dayprev">‹</button><h3 style="margin:0;flex:1;text-align:center">${isToday?'오늘 · ':''}${rosterYM().mm}/${n} (${dow})</h3><button class="mo-btn" id="daynext">›</button></div>${!isToday?`<button class="btn sec" id="daytoday" style="margin:6px 0 2px;padding:7px">↩ 오늘로</button>`:''}<div style="margin:10px 0 10px">${dutyStrip(day)} <span class="chip ${day.carb==='high'?'high':'low'}" style="margin-left:6px">${day.carb==='high'?'고탄수':'저탄수'}</span>${day.strength?` <span class="chip str">근력 ${day.strength}</span>`:''}</div>${sessHTML(day,n)}${day.s.type!=='rest'&&!TIMER.steps?'<button class="btn" id="startsess" style="margin-top:10px">▶ 세션 타이머 시작</button>':''}${strengthHTML(day)}<div class="muted" style="text-align:center;font-size:10px;margin-top:8px">← 좌우로 넘겨 하루씩 이동 →</div></div>`;
+  html+=`<div class="card">`
+    +`<div class="day-nav"><button class="mo-btn" id="dayprev">‹</button><div class="daytitle">${rosterYM().mm}/${n} (${dow})${isToday?'<span class="td">오늘</span>':''}</div><button class="mo-btn" id="daynext">›</button></div>`
+    +`${!isToday?`<button class="btn sec" id="daytoday" style="margin:8px 0 2px;padding:7px">↩ 오늘로</button>`:''}`
+    +statusBanner(n)
+    +`<div style="margin:11px 0 10px">${dutyStrip(day)} <span class="chip ${day.carb==='high'?'high':'low'}" style="margin-left:6px">${day.carb==='high'?'고탄수':'저탄수'}</span>${day.strength?` <span class="chip str">근력 ${day.strength}</span>`:''}</div>`
+    +sessHTML(day,n)
+    +(day.s.type!=='rest'&&!TIMER.steps?'<button class="btn" id="startsess" style="margin-top:10px">▶ 세션 타이머 시작</button>':'')
+    +strengthHTML(day)
+    +actionBar(n)+logForm(n)+typePicker(n)
+    +`<div class="swipehint">← 좌우로 넘겨 하루씩 이동 →</div></div>`;
   html+=timerHTML();
   // quick zones
   const z=zones(P);
@@ -516,6 +587,7 @@ function renderToday(){
   bindMonthNav();
   { const pp=document.getElementById('dayprev'), nn=document.getElementById('daynext'), tt=document.getElementById('daytoday');
     if(pp) pp.onclick=()=>shiftDay(-1); if(nn) nn.onclick=()=>shiftDay(1); if(tt) tt.onclick=goToday; }
+  bindDayActions();
   bindSwipe();
   bindTimer(day);
 }
@@ -524,7 +596,8 @@ function renderWeek(){
   let wi=WEEKS.findIndex(w=>w.days.includes(isRealMonth()?cur:ROSTER.days[0].d)); if(wi<0)wi=0;
   const nav=`<div class="wk-nav">${WEEKS.map((w,i)=>`<button class="${i===wi?'on':''}" data-wk="${i}">${w.l} · ${w.r}</button>`).join('')}</div>`;
   const body=WEEKS[wi].days.map(n=>{const day=PLAN[n];const dow=DOW[new Date(rosterYM().y,rosterYM().mi,n).getDay()];
-    return `<div class="daycard ${n===cur?'today':''}"><div class="dh"><span class="dn">${n}<span class="dw">${dow}</span></span>${dutyStrip(day)}<span class="chip ${day.carb==='high'?'high':'low'}">${day.carb==='high'?'고탄':'저탄'}</span>${day.walk?'<span class="chip walk">걷기</span>':''}${day.strength?`<span class="chip str">근력 ${day.strength}</span>`:''}</div>${sessHTML(day,n)}${strengthHTML(day)}</div>`;
+    const dd=DONE[dateKey(n)]; const dmk=dd&&dd.status==='done'?'<span class="wk-done">✓ 완료</span>':dd&&dd.status==='skip'?'<span class="wk-skip">⤫ 건너뜀</span>':'';
+    return `<div class="daycard ${n===cur?'today':''}"><div class="dh"><span class="dn">${n}<span class="dw">${dow}</span></span>${dutyStrip(day)}<span class="chip ${day.carb==='high'?'high':'low'}">${day.carb==='high'?'고탄':'저탄'}</span>${day.walk?'<span class="chip walk">걷기</span>':''}${day.strength?`<span class="chip str">근력 ${day.strength}</span>`:''}${dmk}</div>${sessHTML(day,n)}${strengthHTML(day)}</div>`;
   }).join('');
   document.getElementById('tab-week').innerHTML=`<div class="card" style="padding:12px 12px 4px">${monthNavHTML()}${nav}</div>${body}`;
   bindMonthNav();
@@ -534,7 +607,8 @@ function renderWeekAt(wi){
   const cur=isRealMonth()?todayN():-1;
   const nav=`<div class="wk-nav">${WEEKS.map((w,i)=>`<button class="${i===wi?'on':''}" data-wk="${i}">${w.l} · ${w.r}</button>`).join('')}</div>`;
   const body=WEEKS[wi].days.map(n=>{const day=PLAN[n];const dow=DOW[new Date(rosterYM().y,rosterYM().mi,n).getDay()];
-    return `<div class="daycard ${n===cur?'today':''}"><div class="dh"><span class="dn">${n}<span class="dw">${dow}</span></span>${dutyStrip(day)}<span class="chip ${day.carb==='high'?'high':'low'}">${day.carb==='high'?'고탄':'저탄'}</span>${day.walk?'<span class="chip walk">걷기</span>':''}${day.strength?`<span class="chip str">근력 ${day.strength}</span>`:''}</div>${sessHTML(day,n)}${strengthHTML(day)}</div>`;
+    const dd=DONE[dateKey(n)]; const dmk=dd&&dd.status==='done'?'<span class="wk-done">✓ 완료</span>':dd&&dd.status==='skip'?'<span class="wk-skip">⤫ 건너뜀</span>':'';
+    return `<div class="daycard ${n===cur?'today':''}"><div class="dh"><span class="dn">${n}<span class="dw">${dow}</span></span>${dutyStrip(day)}<span class="chip ${day.carb==='high'?'high':'low'}">${day.carb==='high'?'고탄':'저탄'}</span>${day.walk?'<span class="chip walk">걷기</span>':''}${day.strength?`<span class="chip str">근력 ${day.strength}</span>`:''}${dmk}</div>${sessHTML(day,n)}${strengthHTML(day)}</div>`;
   }).join('');
   document.getElementById('tab-week').innerHTML=`<div class="card" style="padding:12px 12px 4px">${monthNavHTML()}${nav}</div>${body}`;
   bindMonthNav();
