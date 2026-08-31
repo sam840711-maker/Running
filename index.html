@@ -185,7 +185,7 @@
 
 <script>
 /* ---------- app meta ---------- */
-const APP_VERSION='6.15';
+const APP_VERSION='6.16';
 const APP_BUILD='2026-08-31';
 
 /* ---------- storage ---------- */
@@ -194,17 +194,21 @@ const DEFAULT = {
   restHr:57, maxHr:177, atHr:135, antHr:163, cadence:170,
   startKg:81, tdee:2500, intake:1950, lat:37.28, lon:127.01,
   // paces in sec/km [fast, slow]
-  easy:[435,470], recovery:[460,490], long:[440,480], threshold:[390,405], interval:[360,370],
+  easy:[435,470], recovery:[460,490], long:[440,480], threshold:[375,385], interval:[345,355],   // 2026-08-31 진행: 임계 6'15~6'25(9.5) · 인터벌 5'45~5'55(10.5)
   warmup:450, recJog:470, strideKmh:"12~13"
 };
+const PROFILE_SEED='2026-08-31-v2';
 function validPace(v){ return Array.isArray(v) && v.length===2 && v.every(x=>typeof x==='number' && isFinite(x) && x>0); }
 function loadProfile(){
   let p; try{ p=Object.assign({}, DEFAULT, JSON.parse(localStorage.getItem('shrc_profile')||'{}')); }catch(e){ return {...DEFAULT}; }
   // 저장된 페이스 값이 0/NaN/누락이면 기본값으로 복구 (Infinity·0'00 방지)
   ['easy','recovery','long','threshold','interval'].forEach(k=>{ if(!validPace(p[k])) p[k]=DEFAULT[k].slice(); });
   ['restHr','maxHr','atHr','antHr','cadence','tdee','intake'].forEach(k=>{ if(!(typeof p[k]==='number'&&isFinite(p[k])&&p[k]>0)) p[k]=DEFAULT[k]; });
+  // 코치 페이스 갱신(시드): 체력 진행에 따라 퀄리티 페이스만 새 기본값으로 — 신체·심박 등 사용자 값은 유지
+  if(localStorage.getItem('shrc_profile_seed')!==PROFILE_SEED){ ['threshold','interval'].forEach(k=>p[k]=DEFAULT[k].slice()); localStorage.setItem('shrc_profile_seed',PROFILE_SEED); localStorage.setItem('shrc_profile', JSON.stringify(p)); }
   return p;
 }
+
 function saveProfile(p){ localStorage.setItem('shrc_profile', JSON.stringify(p)); }
 let P = loadProfile();
 function loadLogs(){ try{return JSON.parse(localStorage.getItem('shrc_logs')||'[]');}catch(e){return[];} }
@@ -277,7 +281,7 @@ function routineFor(day){
     return {name:'템포 20분',groups:[G(1,[B('walk',5.0,180),B('run',warmK,600)]),G(2,[B('sprint',r05(strideK-0.5),30),B('walk',5.0,45)]),G(1,[B('run',mainK,1200)]),G(1,[B('run',recK,600),B('walk',5.0,300)])]}; }
   if(s.type==='long'){ const mainK=midK(P.long);
     return {name:'롱런 10km',groups:[G(1,[B('walk',5.5,300),B('run',recK,600)]),G(1,[B('run',mainK,Math.round(10*3600/mainK))]),G(1,[B('walk',5.5,300)])]}; }
-  const km=s.km||5, K = s.type==='tread' ? Math.min(7.5, midK(P.easy)) : (s.rec? midK(P.recovery) : midK(P.easy));
+  const km=s.km||5, K = s.type==='tread' ? Math.min(8.0, midK(P.easy)) : (s.rec? midK(P.recovery) : midK(P.easy));
   return {name:`${s.type==='tread'?'트레드밀 ':''}이지 ${km}km`,groups:[G(1,[B('walk',5.5,300)]),G(1,[B('run',K,Math.round(km*3600/K))]),G(1,[B('walk',5.5,300)])]};
 }
 function getRoutine(n){ return RT[dateKey(n)] || routineFor(PLAN[n]); }
