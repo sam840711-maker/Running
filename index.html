@@ -121,6 +121,29 @@
   .bd.hero .l{color:var(--ink-soft);}
   .swipehint{text-align:center;font-size:10px;color:var(--ink-faint);margin-top:10px;letter-spacing:.02em;}
   .wk-done{color:#5FC79A;font-weight:800;} .wk-skip{color:#C99AB5;font-weight:800;}
+  /* Phase 6 · 스텝 빌더 (treadmill routine blocks) */
+  .rt-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:10px;}
+  .rt-t{font-size:13px;font-weight:800;} .rt-ed{font-size:10px;color:var(--accent);font-weight:800;margin-left:6px;}
+  .rt-sum{font-size:12px;color:var(--ink-soft);margin-top:3px;} .rt-sum b{color:var(--ink);font-family:var(--mono);}
+  .rt-btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;flex:none;}
+  .rt-btns button{font-size:11px;font-weight:800;color:var(--ink);background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer;}
+  .rt-btns button.on{background:var(--accent);color:#0B1220;border-color:var(--accent);}
+  .grp{border:1px solid var(--line-soft);border-radius:12px;padding:9px 10px 6px;margin-bottom:8px;background:var(--card2);}
+  .grp.multi{border-color:#2C5540;background:linear-gradient(180deg,#132A20 0%,var(--card2) 60%);}
+  .grp-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
+  .grp-rep{font-size:11.5px;font-weight:800;color:#7CD6A8;}
+  .bk{display:flex;align-items:center;gap:9px;background:var(--card);border:1px solid var(--line-soft);border-radius:9px;padding:8px 10px;margin-bottom:5px;flex-wrap:wrap;}
+  .bk i{width:9px;height:9px;border-radius:50%;flex:none;}
+  .bk-n{font-weight:800;font-size:13px;min-width:54px;}
+  .bk-sp{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);flex:1;}
+  .bk-t{font-family:var(--mono);font-weight:800;font-size:14px;margin-left:auto;}
+  .stp{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);}
+  .stp button{width:28px;height:28px;border-radius:7px;border:1px solid var(--line);background:var(--card2);color:var(--ink);font-size:16px;line-height:1;cursor:pointer;}
+  .stp b{min-width:46px;text-align:center;font-size:13px;} .stp .u{font-size:10px;color:var(--ink-faint);}
+  .xb{margin-left:auto;font-size:11px;color:var(--heat);background:transparent;border:1px solid #4A2A2A;border-radius:7px;padding:4px 8px;cursor:pointer;}
+  .bk-add{display:flex;gap:6px;margin:4px 0 4px;} .bk-add button{flex:1;font-size:11px;font-weight:700;color:var(--ink-soft);background:var(--card);border:1px dashed var(--line);border-radius:8px;padding:7px 4px;cursor:pointer;}
+  .libl{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;} .libl span{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:5px 8px;}
+  .libl button{font-size:10px;font-weight:700;border:1px solid var(--line);background:transparent;color:var(--accent);border-radius:6px;padding:3px 7px;cursor:pointer;}
   .hide{display:none;}
 </style>
 </head>
@@ -148,7 +171,7 @@
 
 <script>
 /* ---------- app meta ---------- */
-const APP_VERSION='6.10';
+const APP_VERSION='6.11';
 const APP_BUILD='2026-08-31';
 
 /* ---------- storage ---------- */
@@ -220,6 +243,71 @@ function bindDayActions(){
     saveActual(n,{km:parseFloat(g('q_km'))||null,min:parseFloat(g('q_min'))||null,avgHr:parseInt(g('q_hr'))||null,cadence:parseInt(g('q_cad'))||null,rpe:parseInt(g('q_rpe'))||null});});
 }
 
+/* ---------- Phase 6 · 스텝 빌더 — 트레드밀 루틴 블록 (타이머 앱 구조 흡수) ---------- */
+const BLK={walk:{n:'걷기',c:'#3FA57B'},run:{n:'달리기',c:'#E4664C'},sprint:{n:'전력질주',c:'#A78BFA'},rest:{n:'휴식',c:'#9AA8BD'}};
+const r05=k=>Math.round(k*2)/2;                       // 트레드밀 0.5 단위
+const kmhN=sec=>r05(3600/sec);
+const midK=pr=>kmhN((pr[0]+pr[1])/2);
+const mmss=s=>`${Math.floor(s/60)}:${String(Math.round(s%60)).padStart(2,'0')}`;
+function loadJ(k,d){ try{return JSON.parse(localStorage.getItem(k)||'null')??d;}catch(e){return d;} }
+let RT=loadJ('shrc_routines',{}), LIB=loadJ('shrc_lib',[]), rtEditMode=false;
+const saveRTs=()=>localStorage.setItem('shrc_routines',JSON.stringify(RT));
+const saveLIB=()=>localStorage.setItem('shrc_lib',JSON.stringify(LIB));
+function routineFor(day){
+  const s=day&&day.s; if(!s||s.type==='rest') return null;
+  const G=(rep,blocks)=>({rep,blocks}), B=(k,kmh,sec)=>({k,kmh,sec});
+  const warmK=kmhN(P.warmup), recK=kmhN(P.recJog), strideK=r05(+String(P.strideKmh).split('~').pop()||13);
+  if(s.type==='interval'){ const reps=s.reps||5, mainK=kmhN(P.interval[0]);
+    return {name:`인터벌 ${reps}본`,groups:[G(1,[B('walk',5.0,300),B('run',warmK,600)]),G(3,[B('sprint',strideK,30),B('walk',5.0,60)]),G(reps,[B('run',mainK,Math.round(3600/mainK)),B('walk',5.0,90)]),G(1,[B('run',warmK,600),B('walk',5.0,300)])]}; }
+  if(s.type==='threshold'){ const mainK=midK(P.threshold);
+    return {name:'템포 20분',groups:[G(1,[B('walk',5.0,180),B('run',warmK,600)]),G(2,[B('sprint',r05(strideK-0.5),30),B('walk',5.0,45)]),G(1,[B('run',mainK,1200)]),G(1,[B('run',recK,600),B('walk',5.0,300)])]}; }
+  if(s.type==='long'){ const mainK=midK(P.long);
+    return {name:'롱런 10km',groups:[G(1,[B('walk',5.5,300),B('run',recK,600)]),G(1,[B('run',mainK,Math.round(10*3600/mainK))]),G(1,[B('walk',5.5,300)])]}; }
+  const km=s.km||5, K = s.type==='tread' ? Math.min(7.5, midK(P.easy)) : (s.rec? midK(P.recovery) : midK(P.easy));
+  return {name:`${s.type==='tread'?'트레드밀 ':''}이지 ${km}km`,groups:[G(1,[B('walk',5.5,300)]),G(1,[B('run',K,Math.round(km*3600/K))]),G(1,[B('walk',5.5,300)])]};
+}
+function getRoutine(n){ return RT[dateKey(n)] || routineFor(PLAN[n]); }
+function workRT(n){ const k=dateKey(n); if(!RT[k]){ const a=routineFor(PLAN[n]); if(!a) return null; RT[k]=JSON.parse(JSON.stringify(a)); } return RT[k]; }
+function flatten(rt){ const st=[]; rt.groups.forEach(g=>{ for(let i=0;i<g.rep;i++) g.blocks.forEach(b=>st.push({n:BLK[b.k].n+(g.rep>1?` ${i+1}/${g.rep}`:''),sec:b.sec,sp:`${b.kmh.toFixed(1)} km/h · ${pace(3600/b.kmh)}`,kmh:b.kmh,k:b.k})); }); return st; }
+function rtSummary(rt){ let sec=0,dist=0,kcal=0; rt.groups.forEach(g=>g.blocks.forEach(b=>{ const d=b.kmh*b.sec/3600; sec+=g.rep*b.sec; dist+=g.rep*d; kcal+=g.rep*d*(P.weightKg||80)*(b.k==='walk'?0.55:1.0); })); return {sec,dist,kcal:Math.round(kcal)}; }
+function rtText(rt){ return rt.groups.map(g=>(g.rep>1?`[${g.rep}회] `:'')+g.blocks.map(b=>`${BLK[b.k].n} ${b.kmh.toFixed(1)}km/h ${mmss(b.sec)}`).join(' → ')).join('\n'); }
+function routineHTML(n){
+  const rt=getRoutine(n); if(!rt) return '';
+  const sm=rtSummary(rt), edited=!!RT[dateKey(n)];
+  const gh=rt.groups.map((g,gi)=>{
+    const rows=g.blocks.map((b,bi)=>{ const Bk=BLK[b.k]||BLK.run;
+      const ctl = rtEditMode
+        ? `<div class="stp"><button data-rk="${gi}:${bi}:-0.5">−</button><b>${b.kmh.toFixed(1)}</b><button data-rk="${gi}:${bi}:0.5">+</button><span class="u">km/h</span></div><div class="stp"><button data-rs="${gi}:${bi}:-30">−</button><b>${mmss(b.sec)}</b><button data-rs="${gi}:${bi}:30">+</button></div><button class="xb" data-rx="${gi}:${bi}">×</button>`
+        : `<span class="bk-sp">${b.kmh.toFixed(1)} km/h · ${pace(3600/b.kmh)}</span><span class="bk-t">${mmss(b.sec)}</span>`;
+      return `<div class="bk"><i style="background:${Bk.c}"></i><span class="bk-n">${Bk.n}</span>${ctl}</div>`; }).join('');
+    const rep = rtEditMode
+      ? `<span class="stp"><button data-rr="${gi}:-1">−</button><b>${g.rep}</b><button data-rr="${gi}:1">+</button><span class="u">회 반복</span></span><button class="xb" data-rgx="${gi}">그룹 삭제</button>`
+      : `<span class="grp-rep">↻ ${g.rep}회 반복</span>`;
+    const add = rtEditMode ? `<div class="bk-add"><button data-radd="${gi}:walk">+ 걷기</button><button data-radd="${gi}:run">+ 달리기</button><button data-radd="${gi}:sprint">+ 전력질주</button></div>` : '';
+    return `<div class="grp ${g.rep>1?'multi':''}"><div class="grp-h">${rep}</div>${rows}${add}</div>`; }).join('');
+  const lib = LIB.length ? `<div class="libl">${LIB.map((l,i)=>`<span>${l.name}<button data-rload="${i}">불러오기</button><button data-rdel="${i}" style="color:var(--heat)">×</button></span>`).join('')}</div>` : '';
+  return `<div class="card"><div class="rt-top"><div><div class="rt-t">트레드밀 스텝 · ${rt.name}${edited?'<span class="rt-ed">수정됨</span>':''}</div><div class="rt-sum">총 <b>${Math.round(sm.sec/60)}분</b> · <b>${sm.dist.toFixed(2)} km</b> · 약 <b>${sm.kcal}</b> kcal</div></div>
+      <div class="rt-btns"><button data-rtedit class="${rtEditMode?'on':''}">${rtEditMode?'완료':'✎ 편집'}</button><button data-rtcopy>복사</button>${edited?'<button data-rtreset>초기화</button>':''}</div></div>
+    ${gh}
+    ${rtEditMode?`<button class="btn sec" data-rgadd style="margin-top:6px">+ 새 인터벌 그룹</button><div class="row" style="margin-top:8px;align-items:flex-end"><div class="fld" style="margin:0"><label>루틴 저장</label><input id="rtname" placeholder="이름 (예: 템포 20분)"></div><button class="btn sec" data-rtsave style="width:auto;margin:0 0 0 0;padding:10px 14px">저장</button></div>`:''}
+    ${lib}<div class="saved" id="rtmsg"></div></div>`;
+}
+function bindRoutine(n){
+  const q=s=>document.querySelectorAll(s), W=()=>workRT(n), S=()=>{saveRTs(); renderToday();};
+  q('[data-rtedit]').forEach(b=>b.onclick=()=>{rtEditMode=!rtEditMode; renderToday();});
+  q('[data-rtcopy]').forEach(b=>b.onclick=async()=>{const t=rtText(getRoutine(n)); try{await navigator.clipboard.writeText(t);}catch(e){} const m=document.getElementById('rtmsg'); if(m){m.style.color='var(--easy)'; m.textContent='복사됨 · 타이머 앱에 붙여넣기';}});
+  q('[data-rtreset]').forEach(b=>b.onclick=()=>{delete RT[dateKey(n)]; saveRTs(); rtEditMode=false; renderToday();});
+  q('[data-rk]').forEach(b=>b.onclick=()=>{const[g,i,d]=b.dataset.rk.split(':'); const rt=W(); const bl=rt.groups[+g].blocks[+i]; bl.kmh=Math.max(1,r05(bl.kmh+parseFloat(d))); S();});
+  q('[data-rs]').forEach(b=>b.onclick=()=>{const[g,i,d]=b.dataset.rs.split(':'); const rt=W(); const bl=rt.groups[+g].blocks[+i]; bl.sec=Math.max(15,bl.sec+parseInt(d)); S();});
+  q('[data-rr]').forEach(b=>b.onclick=()=>{const[g,d]=b.dataset.rr.split(':'); const rt=W(); rt.groups[+g].rep=Math.max(1,rt.groups[+g].rep+parseInt(d)); S();});
+  q('[data-rx]').forEach(b=>b.onclick=()=>{const[g,i]=b.dataset.rx.split(':'); const rt=W(); rt.groups[+g].blocks.splice(+i,1); if(!rt.groups[+g].blocks.length) rt.groups.splice(+g,1); S();});
+  q('[data-rgx]').forEach(b=>b.onclick=()=>{const rt=W(); rt.groups.splice(+b.dataset.rgx,1); S();});
+  q('[data-radd]').forEach(b=>b.onclick=()=>{const[g,k]=b.dataset.radd.split(':'); const rt=W(); rt.groups[+g].blocks.push({k,kmh:k==='walk'?5.0:k==='sprint'?12.5:8.0,sec:k==='sprint'?30:k==='walk'?90:600}); S();});
+  q('[data-rgadd]').forEach(b=>b.onclick=()=>{const rt=W(); rt.groups.push({rep:1,blocks:[{k:'run',kmh:8.0,sec:600}]}); S();});
+  q('[data-rtsave]').forEach(b=>b.onclick=()=>{const el=document.getElementById('rtname'); const nm=(el&&el.value||'').trim(); if(!nm) return; LIB.push({name:nm,groups:JSON.parse(JSON.stringify(getRoutine(n).groups))}); saveLIB(); renderToday();});
+  q('[data-rload]').forEach(b=>b.onclick=()=>{const l=LIB[+b.dataset.rload]; RT[dateKey(n)]={name:l.name,groups:JSON.parse(JSON.stringify(l.groups))}; saveRTs(); renderToday();});
+  q('[data-rdel]').forEach(b=>b.onclick=()=>{LIB.splice(+b.dataset.rdel,1); saveLIB(); renderToday();});
+}
 /* ---------- calc module ---------- */
 const kmh = sec => (sec>0 && isFinite(sec)) ? (3600/sec).toFixed(1) : '–';
 const kmhRange = ([fast,slow]) => `${kmh(slow)}~${kmh(fast)} km/h`;   // slow sec = lower kmh
@@ -458,7 +546,7 @@ function monthsAvail(){ return Object.keys(ROSTERS).sort(); }
 function realMonth(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
 function pickCurMonth(){ const sv=localStorage.getItem('shrc_curmonth'); const av=monthsAvail(); if(sv&&ROSTERS[sv])return sv; if(ROSTERS[realMonth()])return realMonth(); return av[av.length-1]||'2026-09'; }
 function saveRosters(){ localStorage.setItem('shrc_rosters', JSON.stringify(ROSTERS)); }
-function setMonth(ym){ if(!ROSTERS[ym])return; uiLog=false; uiEdit=false; curMonth=ym; localStorage.setItem('shrc_curmonth',ym); ROSTER=ROSTERS[ym]; recompute(); viewDay=(curMonth===realMonth()?todayN():dayMin()); const a=document.querySelector('.tabbar .on'); const t=a?a.dataset.tab:'week'; show(t); }
+function setMonth(ym){ if(!ROSTERS[ym])return; uiLog=false; uiEdit=false; rtEditMode=false; curMonth=ym; localStorage.setItem('shrc_curmonth',ym); ROSTER=ROSTERS[ym]; recompute(); viewDay=(curMonth===realMonth()?todayN():dayMin()); const a=document.querySelector('.tabbar .on'); const t=a?a.dataset.tab:'week'; show(t); }
 function rosterYM(){ const p=((ROSTER&&ROSTER.month)?ROSTER.month:'2026-09').split('-'); return {y:+p[0], mi:(+p[1])-1, mm:+p[1]}; }
 function buildWeeks(){ const ym=rosterYM(); const ds=ROSTER.days.map(x=>x.d).slice().sort((a,b)=>a-b); const weeks=[]; let cur=null;
   ds.forEach(n=>{ const dow=new Date(ym.y,ym.mi,n).getDay(); if(cur===null||dow===0){ cur={days:[]}; weeks.push(cur);} cur.days.push(n); });
@@ -521,13 +609,13 @@ function dayMin(){ return Math.min.apply(null, ROSTER.days.map(x=>x.d)); }
 function dayMax(){ return Math.max.apply(null, ROSTER.days.map(x=>x.d)); }
 function clampDay(d){ return Math.max(dayMin(), Math.min(dayMax(), d)); }
 function shiftDay(dir){
-  uiLog=false; uiEdit=false;
+  uiLog=false; uiEdit=false; rtEditMode=false;
   const av=monthsAvail(), i=av.indexOf(curMonth); let nd=(viewDay||todayN())+dir;
   if(nd<dayMin() && i>0){ curMonth=av[i-1]; localStorage.setItem('shrc_curmonth',curMonth); ROSTER=ROSTERS[curMonth]; recompute(); viewDay=dayMax(); renderToday(); return; }
   if(nd>dayMax() && i<av.length-1){ curMonth=av[i+1]; localStorage.setItem('shrc_curmonth',curMonth); ROSTER=ROSTERS[curMonth]; recompute(); viewDay=dayMin(); renderToday(); return; }
   viewDay=clampDay(nd); renderToday();
 }
-function goToday(){ uiLog=false; uiEdit=false; const rm=realMonth(); if(ROSTERS[rm] && curMonth!==rm){ curMonth=rm; localStorage.setItem('shrc_curmonth',rm); ROSTER=ROSTERS[rm]; recompute(); } viewDay=todayN(); renderToday(); }
+function goToday(){ uiLog=false; uiEdit=false; rtEditMode=false; const rm=realMonth(); if(ROSTERS[rm] && curMonth!==rm){ curMonth=rm; localStorage.setItem('shrc_curmonth',rm); ROSTER=ROSTERS[rm]; recompute(); } viewDay=todayN(); renderToday(); }
 function bindSwipe(){ const el=document.getElementById('tab-today'); if(!el) return; let sx=0,sy=0,tr=false;
   el.ontouchstart=e=>{ if(e.touches.length!==1){tr=false;return;} sx=e.touches[0].clientX; sy=e.touches[0].clientY; tr=true; };
   el.ontouchend=e=>{ if(!tr)return; tr=false; const t=e.changedTouches[0]; const dx=t.clientX-sx, dy=t.clientY-sy; if(Math.abs(dx)>50 && Math.abs(dx)>Math.abs(dy)*1.5){ shiftDay(dx<0?1:-1); } }; }
@@ -591,7 +679,9 @@ function renderToday(){
     +`${!isToday?`<button class="btn sec" id="daytoday" style="margin:8px 0 2px;padding:7px">↩ 오늘로</button>`:''}`
     +statusBanner(n)
     +`<div style="margin:11px 0 10px">${dutyStrip(day)} <span class="chip ${day.carb==='high'?'high':'low'}" style="margin-left:6px">${day.carb==='high'?'고탄수':'저탄수'}</span>${day.strength?` <span class="chip str">근력 ${day.strength}</span>`:''}</div>`
-    +sessHTML(day,n)
+    +sessHTML(day,n)+`</div>`
+    +routineHTML(n)
+    +`<div class="card" style="margin-top:-4px">`
     +(day.s.type!=='rest'&&!TIMER.steps?'<button class="btn" id="startsess" style="margin-top:10px">▶ 세션 타이머 시작</button>':'')
     +strengthHTML(day)
     +actionBar(n)+logForm(n)+typePicker(n)
@@ -605,6 +695,7 @@ function renderToday(){
   { const pp=document.getElementById('dayprev'), nn=document.getElementById('daynext'), tt=document.getElementById('daytoday');
     if(pp) pp.onclick=()=>shiftDay(-1); if(nn) nn.onclick=()=>shiftDay(1); if(tt) tt.onclick=goToday; }
   bindDayActions();
+  bindRoutine(n);
   bindSwipe();
   bindTimer(day);
 }
@@ -824,23 +915,7 @@ function analyticsHTML(){
     : '<div class="muted">기록이 쌓이면 80/20 분포 표시</div>'}</div>`;
 }
 /* ---------- session timer (structured steps) ---------- */
-function stepsFor(day){
-  const s=day.s, wJog=bothSec(P.warmup), rJog=bothSec(P.recJog);
-  const iv=(P.interval[0]+P.interval[1])/2;
-  if(s.type==='interval'){
-    const st=[{n:'웜업 조깅',sec:600,sp:wJog}];
-    for(let i=0;i<3;i++){ st.push({n:`스트라이드 ${i+1}/3`,sec:28,sp:bothKmh(P.strideKmh)},{n:'걷기 회복',sec:45,sp:bothKmh('4.5~5.0')}); }
-    for(let i=0;i<s.reps;i++){ st.push({n:`1km 반복 ${i+1}/${s.reps}`,sec:Math.round(iv),sp:both(P.interval)});
-      if(i<s.reps-1) st.push({n:'걷기 회복',sec:90,sp:bothKmh('5.0~5.5')}); }
-    st.push({n:'쿨다운 조깅',sec:600,sp:wJog});
-    return st;
-  }
-  if(s.type==='threshold') return [{n:'웜업 조깅',sec:600,sp:wJog},{n:'스트라이드 1/2',sec:28,sp:bothKmh(P.strideKmh)},{n:'걷기 회복',sec:45,sp:bothKmh('4.5~5.0')},{n:'스트라이드 2/2',sec:28,sp:bothKmh(P.strideKmh)},{n:'걷기 회복',sec:45,sp:bothKmh('4.5~5.0')},{n:'임계 20분',sec:1200,sp:both(P.threshold)},{n:'쿨다운 조깅',sec:600,sp:rJog}];
-  if(s.type==='tread'||s.type==='easy'){ const km=s.km||5, pr=s.rec?P.recovery:P.easy;
-    return [{n:'걷기 웜업',sec:300,sp:bothKmh('5.5~6.0')},{n:`이지 ${km}km`,sec:Math.round(km*((pr[0]+pr[1])/2)),sp:both(pr)},{n:'걷기 쿨다운',sec:240,sp:bothKmh('5.5~6.0')}]; }
-  if(s.type==='long') return [{n:'점진 웜업 2km',sec:Math.round(2*((P.long[0]+P.long[1])/2)),sp:both(P.long)},{n:'롱런 본편',sec:3600,sp:both(P.long)},{n:'걷기 쿨다운',sec:300,sp:bothKmh('5.5~6.0')}];
-  return null;
-}
+function stepsFor(day){ const rt=getRoutine(viewDay); return rt? flatten(rt) : null; }
 let TIMER={steps:null,i:0,left:0,run:false,h:null};
 function timerHTML(){
   if(!TIMER.steps) return '';
