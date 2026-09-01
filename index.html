@@ -158,6 +158,13 @@
   .t-next .nl{font-size:10.5px;font-weight:800;color:var(--ink-faint);letter-spacing:.06em;flex:none;}
   .t-next i{width:9px;height:9px;border-radius:50%;flex:none;}
   .t-next b{font-weight:800;} .t-next .nk{font-family:var(--mono);color:var(--ink);font-weight:800;} .t-next .nt{font-family:var(--mono);font-weight:800;margin-left:auto;color:var(--ink-soft);}
+  .t-tot{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 8px;}
+  .t-tot>div{background:var(--card2);border:1px solid var(--line-soft);border-radius:10px;padding:8px 10px;text-align:center;}
+  .t-tot .k{display:block;font-size:10px;color:var(--ink-faint);font-weight:800;letter-spacing:.05em;margin-bottom:2px;}
+  .t-tot b{font-family:var(--mono);font-size:19px;font-weight:800;}
+  .t-tot .of{font-family:var(--mono);font-size:11px;color:var(--ink-soft);margin-left:4px;}
+  .t-prog{height:5px;background:var(--line-soft);border-radius:3px;overflow:hidden;margin:0 0 11px;}
+  .t-prog i{display:block;height:100%;background:linear-gradient(90deg,var(--easy),var(--accent));}
   .hide{display:none;}
 </style>
 </head>
@@ -185,7 +192,7 @@
 
 <script>
 /* ---------- app meta ---------- */
-const APP_VERSION='6.16';
+const APP_VERSION='6.17';
 const APP_BUILD='2026-08-31';
 
 /* ---------- storage ---------- */
@@ -962,13 +969,17 @@ function timerHTML(){
   const mm=String(Math.floor(TIMER.left/60)).padStart(2,'0'), ss=String(Math.max(0,TIMER.left%60)).padStart(2,'0');
   const c=(BLK[st.k]||BLK.run).c, cd=TIMER.left>=1&&TIMER.left<=5;
   const spd = st.kmh!=null ? `<b>${st.kmh.toFixed(1)}</b><span class="u">km/h</span><span class="pc">${pace(3600/st.kmh)}/km · 이 구간 ${mmss(st.sec)}</span>` : `<span class="pc">이 구간 ${mmss(st.sec)}</span>`;
+  let elT=0,elD=0,plT=0,plD=0; TIMER.steps.forEach((x,idx)=>{ const kd=(x.kmh||0)/3600; plT+=x.sec; plD+=kd*x.sec;
+    if(idx<TIMER.i){ elT+=x.sec; elD+=kd*x.sec; } else if(idx===TIMER.i){ const e=Math.max(0,x.sec-TIMER.left); elT+=e; elD+=kd*e; } });
+  const pct=plT?Math.min(100,elT/plT*100):0;
+  const tot=`<div class="t-tot"><div><span class="k">누적 시간</span><b>${mmss(elT)}</b><span class="of">/ ${mmss(plT)}</span></div><div><span class="k">예상 누적거리</span><b>${elD.toFixed(2)}</b><span class="of">/ ${plD.toFixed(2)} km</span></div></div><div class="t-prog"><i style="width:${pct.toFixed(1)}%"></i></div>`;
   const next = nx ? `<div class="t-next"><span class="nl">다음</span><i style="background:${(BLK[nx.k]||BLK.run).c}"></i><b>${nx.n}</b>${nx.kmh!=null?`<span class="nk">${nx.kmh.toFixed(1)} km/h</span>`:''}<span class="nt">${mmss(nx.sec)}</span></div>`
                   : `<div class="t-next"><span class="nl">다음</span><b>마지막 구간 — 종료</b></div>`;
   return `<div class="card tcard"><h3>세션 타이머 · ${TIMER.i+1}/${TIMER.steps.length}</h3>
     <div class="t-step"><i style="background:${c}"></i>${st.n}</div>
     <div class="t-time ${cd?'cd':''}">${mm}:${ss}</div>
     <div class="t-speed">${spd}</div>
-    ${next}
+    ${tot}${next}
     <div class="row"><button class="btn" id="tgo" style="flex:1">${TIMER.run?'일시정지':'시작'}</button>
       <button class="btn sec" id="tnext" style="flex:1">다음 ▸</button></div>
     <div class="row" style="margin-top:8px"><button class="btn sec" id="tstop" style="flex:1;margin:0">종료</button><button class="btn sec" id="tvoice" style="flex:1;margin:0;color:${VOICE_ON?'var(--accent)':'var(--ink-faint)'}">${VOICE_ON?'🔊 소리 켬':'🔇 소리 끔'}</button></div></div>`;

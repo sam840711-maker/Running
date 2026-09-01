@@ -1,5 +1,5 @@
 /* SH Running Coach · app-shell cache (HTML network-first, assets cache-first) */
-const CACHE = 'shrc-v22';
+const CACHE = 'shrc-v23';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
