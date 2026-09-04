@@ -48,6 +48,7 @@
   .sess.k-qual{border-left-color:var(--qual);background:linear-gradient(90deg,var(--qual-bg),transparent 70%);}
   .sess.k-tread{border-left-color:var(--tread);background:linear-gradient(90deg,var(--tread-bg),transparent 70%);}
   .sess.k-str{border-left-color:var(--str);background:linear-gradient(90deg,var(--str-bg),transparent 70%);}
+  .sess.k-walk{border-left-color:#5FC79A;background:linear-gradient(90deg,#12291E,transparent 70%);}
   .sess.k-rest{border-left-color:var(--line);}
   .sess-head{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-bottom:7px;}
   .sess-tag{font-size:13px;font-weight:800;}
@@ -192,7 +193,7 @@
 
 <script>
 /* ---------- app meta ---------- */
-const APP_VERSION='6.17';
+const APP_VERSION='6.18';
 const APP_BUILD='2026-08-31';
 
 /* ---------- storage ---------- */
@@ -239,9 +240,9 @@ function saveActual(n,data){ const k=dateKey(n); DONE[k]=Object.assign(DONE[k]||
 function setDayType(n,hint){ const d=ROSTER.days.find(x=>x.d===n); if(!d)return; d.force=hint; ROSTERS[curMonth]=ROSTER; saveRosters(); uiEdit=false; recompute(); viewDay=n; renderToday(); }
 function resetDayType(n){ const d=ROSTER.days.find(x=>x.d===n); if(!d)return; delete d.force; ROSTERS[curMonth]=ROSTER; saveRosters(); uiEdit=false; recompute(); viewDay=n; renderToday(); }
 function deferDay(n){ const cur=ROSTER.days.find(x=>x.d===n), nx=ROSTER.days.find(x=>x.d===n+1); if(!cur||!nx)return;
-  const map={tread:'tread',easy:'easy',long:'long',threshold:'threshold',interval:'interval',rest:'rest'}; nx.force=map[planType(n)]||'easy'; cur.force='easyrec';
+  const map={tread:'tread',easy:'easy',long:'long',threshold:'threshold',interval:'interval',rest:'rest',walk:'walk'}; nx.force=map[planType(n)]||'easy'; cur.force='easyrec';
   ROSTERS[curMonth]=ROSTER; saveRosters(); recompute(); viewDay=n+1; renderToday(); }
-const EDIT_TYPES=[['easy','이지'],['easyrec','회복'],['threshold','템포'],['interval','인터벌'],['long','롱런'],['rest','휴식']];
+const EDIT_TYPES=[['easy','이지'],['easyrec','회복런'],['walk','걷기'],['threshold','템포'],['interval','인터벌'],['long','롱런'],['rest','휴식']];
 function statusBanner(n){ const d=DONE[dateKey(n)]; if(!d||!d.status) return '';
   if(d.status==='done'){ const parts=[d.km?d.km+'km':'',d.min?d.min+'분':'',d.avgHr?d.avgHr+'bpm':'',d.cadence?d.cadence+'spm':'',d.rpe?'RPE '+d.rpe:''].filter(Boolean);
     return `<div class="stbar done">✓ 완료${parts.length?' · '+parts.join(' · '):''}<button class="stundo" data-undo="${n}">되돌리기</button></div>`; }
@@ -255,7 +256,7 @@ function logForm(n){ if(!uiLog) return ''; const d=DONE[dateKey(n)]||{};
     <button class="btn" data-savelog="${n}" style="margin-top:2px">완료로 저장</button></div>`; }
 function typePicker(n){ if(!uiEdit) return ''; const d=ROSTER.days.find(x=>x.d===n); const forced=d&&d.force;
   const cur=forced||planType(n); const curH=cur==='tread'?'easy':cur;
-  return `<div class="qform"><div class="muted" style="margin-bottom:7px">이 날 세션 바꾸기 — 근무일 상관없이 강제 적용${forced?' · <b style="color:var(--accent)">수동 지정됨</b>':''}</div><div class="tpick">${EDIT_TYPES.map(([h,l])=>`<button class="tp ${curH===h?'on':''}" data-type="${n}:${h}">${l}</button>`).join('')}</div>${forced?`<button class="btn sec" data-resettype="${n}" style="margin-top:8px">↺ 자동 배치로 되돌리기</button>`:''}</div>`; }
+  return `<div class="qform"><div class="muted" style="margin-bottom:7px">이 날 세션 바꾸기 — 근무일 상관없이 강제 적용${forced?' · <b style="color:var(--accent)">수동 지정됨</b>':''}</div><div class="muted" style="font-size:10.5px;margin-bottom:7px">회복 3단계: <b>휴식</b>=완전 오프 · <b>걷기</b>=안 뛰고 걷기만 · <b>회복런</b>=아주 느린 러닝</div><div class="tpick">${EDIT_TYPES.map(([h,l])=>`<button class="tp ${curH===h?'on':''}" data-type="${n}:${h}">${l}</button>`).join('')}</div>${forced?`<button class="btn sec" data-resettype="${n}" style="margin-top:8px">↺ 자동 배치로 되돌리기</button>`:''}</div>`; }
 function bindDayActions(){
   document.querySelectorAll('[data-log]').forEach(b=>b.onclick=()=>{uiLog=!uiLog;uiEdit=false;renderToday();});
   document.querySelectorAll('[data-skip]').forEach(b=>b.onclick=()=>markStatus(+b.dataset.skip,'skip'));
@@ -286,6 +287,7 @@ function routineFor(day){
     return {name:`인터벌 ${reps}본`,groups:[G(1,[B('walk',5.0,300),B('run',warmK,600)]),G(3,[B('sprint',strideK,30),B('walk',5.0,60)]),G(reps,[B('run',mainK,Math.round(3600/mainK)),B('walk',5.0,90)]),G(1,[B('run',warmK,600),B('walk',5.0,300)])]}; }
   if(s.type==='threshold'){ const mainK=midK(P.threshold);
     return {name:'템포 20분',groups:[G(1,[B('walk',5.0,180),B('run',warmK,600)]),G(2,[B('sprint',r05(strideK-0.5),30),B('walk',5.0,45)]),G(1,[B('run',mainK,1200)]),G(1,[B('run',recK,600),B('walk',5.0,300)])]}; }
+  if(s.type==='walk'){ return {name:'회복 걷기 35분',groups:[G(1,[B('walk',5.0,300)]),G(1,[B('walk',5.5,1500)]),G(1,[B('walk',5.0,300)])]}; }
   if(s.type==='long'){ const mainK=midK(P.long);
     return {name:'롱런 10km',groups:[G(1,[B('walk',5.5,300),B('run',recK,600)]),G(1,[B('run',mainK,Math.round(10*3600/mainK))]),G(1,[B('walk',5.5,300)])]}; }
   const km=s.km||5, K = s.type==='tread' ? Math.min(8.0, midK(P.easy)) : (s.rec? midK(P.recovery) : midK(P.easy));
@@ -366,7 +368,7 @@ function easyRun(p, km, rec){
   ]};
 }
 function treadRun(p, km){
-  const pr=p.easy, trFast=Math.round((pr[0]+pr[1])/2), trPr=[trFast, pr[1]];
+  const pr=p.easy, trFast=Math.round(3600/Math.min(8.0, midK(pr))), trPr=[trFast, pr[1]];
   const avg=(trPr[0]+trPr[1])/2, warmMin=5, coolMin=4;
   const total=Math.round(km*avg/60 + warmMin + coolMin);
   return {kind:'tread', head:'트레드밀 이지 · 존2', meta:`${km}km · 총 약 ${total}분`, bd:[
@@ -407,12 +409,20 @@ function interval(p, reps){
     ['쿨다운',`이지 조깅 10분 @<b>${bothSec(p.warmup)}</b> + 정적 스트레칭`],
   ]};
 }
+function walkSess(p){
+  return {kind:'walk', head:'회복 걷기', meta:'30~40분 · 부하 최소', bd:[
+    ['목적','휴식과 회복런의 중간 · 혈류만 돌리는 적극적 회복 · 심박 <b>≤120</b> · RPE 1'],
+    ['트레드밀',`경사 <b>2~3%</b> · <b>${bothKmh('5.0~5.5')}</b> · 30~40분`],
+    ['야외','편한 산책~빠른 걷기 · 대화 완전 편함'],
+  ]};
+}
 function build(p, s){
   if(s.type==='easy') return easyRun(p, s.km, s.rec);
   if(s.type==='tread') return treadRun(p, s.km);
   if(s.type==='long') return longRun(p);
   if(s.type==='threshold') return threshold(p);
   if(s.type==='interval') return interval(p, s.reps);
+  if(s.type==='walk') return walkSess(p);
   return {kind:'rest', head:'휴식 / 회복', reason:s.reason||''};
 }
 
@@ -433,13 +443,13 @@ const SEP_DEFAULT = { month:'2026-09', days:[
   {d:2,kind:'layover',label:'L/O 다낭',layover:'다낭',hint:'easy',coast:1,humid:1,heat:'다낭 31°C·습함'},
   {d:3,kind:'flight',label:'DAD-ICN 08:15',redeye:1,reason:'새벽도착 · 회복'},
   {d:4,kind:'off',label:'OFF',hint:'easyrec',heat:'낮 30°C'},
-  {d:5,kind:'off',label:'OFF',hint:'long',heat:'낮 30°C'},
+  {d:5,kind:'off',label:'OFF',hint:'easy',heat:'낮 30°C'},
   {d:6,kind:'flight',label:'국내 다구간',sectors:4,layover:'청주',reason:'GMP-CJU·CJJ-CJU 등 오후~야간 근무',opt:1,heat:'낮 30°C'},
-  {d:7,kind:'flight',label:'야간 CJJ-DAD',nightDep:'다낭',reason:'저녁 출발 · 오전 이지 가능',opt:1,heat:'낮 30°C'},
-  {d:8,kind:'layover',label:'L/O 다낭',layover:'다낭',hint:'easy',coast:1,humid:1,heat:'다낭 31°C·습함'},
+  {d:7,kind:'flight',label:'야간 CJJ-DAD',nightDep:'다낭',force:'long',reason:'오전 롱런(청주) → 저녁 출발 · 비행 3h 전 종료·탄수 보충',heat:'낮 30°C'},
+  {d:8,kind:'layover',label:'L/O 다낭',layover:'다낭',force:'walk',coast:1,humid:1,reason:'롱런+야간비행 다음날 · 무거우면 휴식으로',heat:'다낭 31°C·습함'},
   {d:9,kind:'flight',label:'DAD-ICN 08:15',redeye:1,reason:'새벽도착 · 회복'},
-  {d:10,kind:'off',label:'OFF',hint:'easyrec',heat:'낮 29°C'},
-  {d:11,kind:'off',label:'OFF',hint:'interval',reps:5,heat:'낮 29°C'},
+  {d:10,kind:'off',label:'OFF',hint:'threshold',reason:'템포 9.5 첫 실전',heat:'낮 29°C'},
+  {d:11,kind:'off',label:'OFF',hint:'easyrec',reason:'템포 다음날 회복런',heat:'낮 29°C'},
   {d:12,kind:'reserve',label:'SBY-B 대기',hint:'easy',opt:1,reason:'오후 대기 · 오전에',heat:'낮 29°C'},
   {d:13,kind:'reserve',label:'TRAIN+L/O',hint:'easy',reason:'오후 교육 · 오전에',heat:'낮 29°C'},
   {d:14,kind:'flight',label:'TAE-KIX 06:50',early:1,layover:'오사카',reason:'이른 show · KIX L/O',opt:1,heat:'낮 28°C'},
@@ -522,6 +532,7 @@ function genDay(days,i){
     else if(F==='threshold'){ o.s={type:'threshold'}; o.carb='high'; }
     else if(F==='long'){ o.s={type:'long'}; o.carb='high'; }
     else if(F==='easyrec'){ o.s={type:'easy',km:5,rec:1}; o.carb='low'; }
+    else if(F==='walk'){ o.s={type:'walk'}; o.carb='rec'; }
     else if(F==='tread'){ o.s={type:'tread',km:6}; o.carb='low'; }
     else { o.s={type:'easy',km:6}; o.carb='low'; }
     o.env = (day.kind==='off'||day.kind==='reserve') ? homeEnv(day,hardNext,o.s.type)
@@ -558,7 +569,7 @@ function generatePlan(roster){
   days.forEach((d,i)=>{ plan[d.d]=genDay(days,i); });
   return plan;
 }
-const ROSTER_SEED='2026-08+09-v2';
+const ROSTER_SEED='2026-08+09-v3';
 function loadRosters(){ try{
     let map=JSON.parse(localStorage.getItem('shrc_rosters')||'null');
     const seed=localStorage.getItem('shrc_roster_seed');
@@ -658,7 +669,7 @@ function envHTML(env){
 function sessHTML(day, n){
   const b=build(P, day.s);
   if(b.kind==='rest'){
-    return `<div class="sess k-rest"><div class="rest-line"><b>휴식 / 회복</b> · ${b.reason}</div>${day.walk?'<div style="margin-top:6px"><span class="chip walk">걷기 옵션</span></div>':''}<div class="nut ${day.carb==='high'?'high':'low'}"><span class="nn">${NUT[day.carb]}</span></div></div>`;
+    return `<div class="sess k-rest"><div class="rest-line"><b>휴식 / 회복</b> · ${b.reason}</div><div class="muted" style="margin-top:6px;font-size:11px">가볍게 걷고 싶으면 ✎변경 → <b>걷기</b> (경사 2~3% · 5.0~5.5km/h · 30~40분)</div><div class="nut ${day.carb==='high'?'high':'low'}"><span class="nn">${NUT[day.carb]}</span></div></div>`;
   }
   const rows=b.bd.map(([l,v])=>`<div class="bd${l==='메인'?' hero':''}"><span class="l">${l}</span><span class="v">${v}</span></div>`).join('');
   return `<div class="sess k-${b.kind}"><div class="sess-head"><span class="sess-tag">${b.head}${day.opt?' <span class="chip" style="background:var(--qual-bg);color:var(--qual)">선택</span>':''}</span><span class="sess-meta">${b.meta}</span></div>${envHTML(day.env)}${rows}<div class="nut ${day.carb==='high'?'high':'low'}"><span class="nn">${NUT[day.carb]}</span></div></div>`;
@@ -703,12 +714,11 @@ function renderToday(){
     +`<div class="day-nav"><button class="mo-btn" id="dayprev">‹</button><div class="daytitle">${rosterYM().mm}/${n} (${dow})${isToday?'<span class="td">오늘</span>':''}</div><button class="mo-btn" id="daynext">›</button></div>`
     +`${!isToday?`<button class="btn sec" id="daytoday" style="margin:8px 0 2px;padding:7px">↩ 오늘로</button>`:''}`
     +statusBanner(n)
-    +`<div style="margin:11px 0 10px">${dutyStrip(day)} <span class="chip ${day.carb==='high'?'high':'low'}" style="margin-left:6px">${day.carb==='high'?'고탄수':'저탄수'}</span>${day.strength?` <span class="chip str">근력 ${day.strength}</span>`:''}</div>`
+    +`<div style="margin:11px 0 10px">${dutyStrip(day)} <span class="chip ${day.carb==='high'?'high':'low'}" style="margin-left:6px">${day.carb==='high'?'고탄수':'저탄수'}</span></div>`
     +sessHTML(day,n)+`</div>`
     +routineHTML(n)
     +`<div class="card" style="margin-top:-4px">`
     +(day.s.type!=='rest'&&!TIMER.steps?`<div class="row" style="margin-top:10px"><button class="btn" id="startsess" style="flex:1;margin:0">▶ 세션 타이머 시작</button><button class="btn sec" id="tvoice" style="flex:none;width:auto;margin:0;padding:12px 14px;color:${VOICE_ON?'var(--accent)':'var(--ink-faint)'}" title="소리(음성+비프)">${VOICE_ON?'🔊':'🔇'}</button></div>`:'')
-    +strengthHTML(day)
     +actionBar(n)+logForm(n)+typePicker(n)
     +`<div class="swipehint">← 좌우로 넘겨 하루씩 이동 →</div></div>`;
   html+=timerHTML();
@@ -730,7 +740,7 @@ function renderWeek(){
   const nav=`<div class="wk-nav">${WEEKS.map((w,i)=>`<button class="${i===wi?'on':''}" data-wk="${i}">${w.l} · ${w.r}</button>`).join('')}</div>`;
   const body=WEEKS[wi].days.map(n=>{const day=PLAN[n];const dow=DOW[new Date(rosterYM().y,rosterYM().mi,n).getDay()];
     const dd=DONE[dateKey(n)]; const dmk=dd&&dd.status==='done'?'<span class="wk-done">✓ 완료</span>':dd&&dd.status==='skip'?'<span class="wk-skip">⤫ 건너뜀</span>':'';
-    return `<div class="daycard ${n===cur?'today':''}"><div class="dh"><span class="dn">${n}<span class="dw">${dow}</span></span>${dutyStrip(day)}<span class="chip ${day.carb==='high'?'high':'low'}">${day.carb==='high'?'고탄':'저탄'}</span>${day.walk?'<span class="chip walk">걷기</span>':''}${day.strength?`<span class="chip str">근력 ${day.strength}</span>`:''}${dmk}</div>${sessHTML(day,n)}${strengthHTML(day)}</div>`;
+    return `<div class="daycard ${n===cur?'today':''}"><div class="dh"><span class="dn">${n}<span class="dw">${dow}</span></span>${dutyStrip(day)}<span class="chip ${day.carb==='high'?'high':'low'}">${day.carb==='high'?'고탄':'저탄'}</span>${day.walk?'<span class="chip walk">걷기</span>':''}${dmk}</div>${sessHTML(day,n)}</div>`;
   }).join('');
   document.getElementById('tab-week').innerHTML=`<div class="card" style="padding:12px 12px 4px">${monthNavHTML()}${nav}</div>${body}`;
   bindMonthNav();
@@ -741,7 +751,7 @@ function renderWeekAt(wi){
   const nav=`<div class="wk-nav">${WEEKS.map((w,i)=>`<button class="${i===wi?'on':''}" data-wk="${i}">${w.l} · ${w.r}</button>`).join('')}</div>`;
   const body=WEEKS[wi].days.map(n=>{const day=PLAN[n];const dow=DOW[new Date(rosterYM().y,rosterYM().mi,n).getDay()];
     const dd=DONE[dateKey(n)]; const dmk=dd&&dd.status==='done'?'<span class="wk-done">✓ 완료</span>':dd&&dd.status==='skip'?'<span class="wk-skip">⤫ 건너뜀</span>':'';
-    return `<div class="daycard ${n===cur?'today':''}"><div class="dh"><span class="dn">${n}<span class="dw">${dow}</span></span>${dutyStrip(day)}<span class="chip ${day.carb==='high'?'high':'low'}">${day.carb==='high'?'고탄':'저탄'}</span>${day.walk?'<span class="chip walk">걷기</span>':''}${day.strength?`<span class="chip str">근력 ${day.strength}</span>`:''}${dmk}</div>${sessHTML(day,n)}${strengthHTML(day)}</div>`;
+    return `<div class="daycard ${n===cur?'today':''}"><div class="dh"><span class="dn">${n}<span class="dw">${dow}</span></span>${dutyStrip(day)}<span class="chip ${day.carb==='high'?'high':'low'}">${day.carb==='high'?'고탄':'저탄'}</span>${day.walk?'<span class="chip walk">걷기</span>':''}${dmk}</div>${sessHTML(day,n)}</div>`;
   }).join('');
   document.getElementById('tab-week').innerHTML=`<div class="card" style="padding:12px 12px 4px">${monthNavHTML()}${nav}</div>${body}`;
   bindMonthNav();
@@ -774,14 +784,6 @@ function renderSettings(){
     <div class="card"><h2>심박 (실측 캘리브레이션)</h2><div class="row">${f('restHr','안정',P.restHr)}${f('maxHr','최대',P.maxHr)}${f('atHr','AT(유산소역치)',P.atHr)}${f('antHr','AnT(무산소역치)',P.antHr)}${f('cadence','목표 케이던스',P.cadence)}</div></div>
     <div class="card"><h2>페이스 존 (sec 자동환산)</h2><div class="row">${fp('p_easy','이지',P.easy)}${fp('p_recovery','회복',P.recovery)}</div><div class="row">${fp('p_long','롱런',P.long)}${fp('p_threshold','임계',P.threshold)}</div><div class="row">${fp('p_interval','인터벌',P.interval)}</div></div>
     <div class="card"><h2>칼로리</h2><div class="row">${f('tdee','유지(TDEE)',P.tdee)}${f('intake','섭취 목표',P.intake)}</div></div>
-    <div class="card"><h2>근력 (플랜핏 연동)</h2>
-      <div class="muted" style="margin-bottom:8px"><b style="color:var(--str)">8/17부터 시작</b> · 주 2회 · 홈데이(OFF/RESV)에 <b>자동 배치</b>. 러닝 먼저 → 근력. <b>B(하체)</b>는 전날·다음날·당일 퀄리티·롱런 없는 날만, <b>A(상체)</b>는 배치 자유(이지·휴식일 우선). 바쁜 주는 1회로 자동 축소.</div>
-      <div class="zone"><span class="zn" style="color:var(--str)">Day A · 상체</span><span class="zv">30분 · 플랜핏 플랜 1</span></div>
-      <div class="muted" style="font-size:11px;margin:2px 0 7px">트위스트슈퍼맨 · 와이드푸쉬업 · 에어레터럴 · 와이드스쿼트 2세트 · 카프 · 사이드플랭크</div>
-      <div class="zone"><span class="zn" style="color:var(--str)">Day B · 하체</span><span class="zv">40분 · 플랜핏 플랜 2</span></div>
-      <div class="muted" style="font-size:11px;margin:2px 0 7px">밴드글루트브릿지 · 사이드킥백 · 레그컬 · 카프 · 와이드푸쉬업 · 데드벅</div>
-      <div class="muted" style="font-size:11px">수동 지정: 로스터 해당 일에 <span style="font-family:var(--mono);color:var(--str)">"strength":"A"</span> · <span style="font-family:var(--mono);color:var(--str)">"B"</span> · <span style="font-family:var(--mono);color:var(--str)">"skip"</span> 추가 → 자동배치보다 우선.</div>
-    </div>
     <div class="card"><h2>로스터 (JSON) · 월별 추가</h2>
       <div class="muted" style="margin-bottom:8px">현재 <b id="rostermonths"></b> 저장됨. 아래는 <b>${curMonth}</b> 내용 — 편집 후 적용하면 그 달만 갱신돼. <b>다른 달 JSON</b>(<span style="font-family:var(--mono)">{"month":"2026-10",...}</span>)을 붙여넣고 적용하면 <b>새 달로 추가</b>되고 그 달로 이동해. (hint: interval·threshold·long·easy·easyrec / override: strength:"A"·"B"·"skip")</div>
       <textarea id="rosterjson" spellcheck="false" style="width:100%;height:150px;font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--card2);color:var(--ink);resize:vertical"></textarea>
