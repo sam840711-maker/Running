@@ -193,7 +193,7 @@
 
 <script>
 /* ---------- app meta ---------- */
-const APP_VERSION='6.22';
+const APP_VERSION='6.23';
 const APP_BUILD='2026-08-31';
 
 /* ---------- storage ---------- */
@@ -458,14 +458,14 @@ const SEP_DEFAULT = { month:'2026-09', days:[
   {d:17,kind:'reserve',label:'RESV',force:'long',reason:'아침 일찍 롱런 10~12km · 콜 대비 폰 휴대',heat:'낮 28°C'},
   {d:18,kind:'reserve',label:'SBY-B 대기',force:'walk',reason:'롱런 다음날 · 13시 대기 전 걷기 (이지로 바꿔도 OK)',heat:'낮 28°C'},
   {d:19,kind:'flight',label:'ICN-FUK 16:25',reason:'오후 출발 · 오전 이지 가능',opt:1,heat:'낮 28°C'},
-  {d:20,kind:'off',label:'OFF',hint:'interval',reps:5,heat:'낮 27°C'},
-  {d:21,kind:'flight',label:'야간 ICN-CXR',nightDep:'깜라인',reason:'저녁 출발 · 오전 이지',opt:1,heat:'낮 28°C'},
+  {d:20,kind:'off',label:'OFF',hint:'easy',reason:'와이프랑 이지 · 막판 가속 금지(내일 인터벌)',heat:'낮 27°C'},
+  {d:21,kind:'flight',label:'야간 ICN-CXR',nightDep:'깜라인',force:'interval',reps:5,reason:'오전 인터벌 10.5×5 → 17:20 출발 · 탄수 보충',heat:'낮 28°C'},
   {d:22,kind:'layover',label:'L/O 깜라인',layover:'깜라인',hint:'easy',coast:1,humid:1,heat:'깜라인 30°C·습함'},
   {d:23,kind:'flight',label:'CXR-PUS 08:05',redeye:1,reason:'새벽도착 · 회복'},
   {d:24,kind:'flight',label:'다구간 (추석)',sectors:3,reason:'PUS-KIX·CJU-GMP · 레드아이 다음날 회복',heat:'낮 27°C'},
-  {d:25,kind:'off',label:'RQOFF (추석)',hint:'long',heat:'낮 27°C'},
-  {d:26,kind:'off',label:'RQOFF (추석)',hint:'easyrec',heat:'낮 27°C'},
-  {d:27,kind:'off',label:'OFF',hint:'easy',heat:'낮 26°C'},
+  {d:25,kind:'off',label:'RQOFF (추석)',hint:'easyrec',reason:'깜라인 트립+다구간 회복',heat:'낮 27°C'},
+  {d:26,kind:'off',label:'RQOFF (추석)',hint:'long',reason:'롱런 12~14km · 7분20~40초',heat:'낮 27°C'},
+  {d:27,kind:'off',label:'OFF',force:'walk',reason:'롱런 다음날',heat:'낮 26°C'},
   {d:28,kind:'flight',label:'ICN-HSG 06:30',early:1,sectors:2,reason:'이른 show · 회복'},
   {d:29,kind:'flight',label:'ICN-HKG 07:05',early:1,layover:'홍콩',reason:'이른 show · HKG L/O',opt:1,humid:1,heat:'홍콩 30°C·습함'},
   {d:30,kind:'flight',label:'HKG-ICN 12:05',reason:'낮 출발 · 오전 이지 가능',opt:1,humid:1,heat:'홍콩 30°C·습함'},
@@ -569,7 +569,7 @@ function generatePlan(roster){
   days.forEach((d,i)=>{ plan[d.d]=genDay(days,i); });
   return plan;
 }
-const ROSTER_SEED='2026-08+09-v6';
+const ROSTER_SEED='2026-08+09-v7';
 function loadRosters(){ try{
     let map=JSON.parse(localStorage.getItem('shrc_rosters')||'null');
     const seed=localStorage.getItem('shrc_roster_seed');
