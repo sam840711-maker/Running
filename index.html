@@ -141,6 +141,10 @@
   .stp{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);}
   .stp button{width:28px;height:28px;border-radius:7px;border:1px solid var(--line);background:var(--card2);color:var(--ink);font-size:16px;line-height:1;cursor:pointer;}
   .stp b{min-width:46px;text-align:center;font-size:13px;} .stp .u{font-size:10px;color:var(--ink-faint);}
+  .stp b.tap{cursor:pointer;border-bottom:1px dashed var(--line);padding-bottom:1px;}
+  .stp b.tap:active{color:var(--accent);}
+  .stp input.tin{width:60px;height:28px;text-align:center;font-family:var(--mono);font-size:13px;border:1px solid var(--accent);border-radius:7px;background:var(--card);color:var(--ink);padding:0 4px;}
+  .rt-hint{font-size:10.5px;color:var(--ink-faint);line-height:1.55;margin:6px 0 2px;}
   .xb{margin-left:auto;font-size:11px;color:var(--heat);background:transparent;border:1px solid #4A2A2A;border-radius:7px;padding:4px 8px;cursor:pointer;}
   .bk-add{display:flex;gap:6px;margin:4px 0 4px;} .bk-add button{flex:1;font-size:11px;font-weight:700;color:var(--ink-soft);background:var(--card);border:1px dashed var(--line);border-radius:8px;padding:7px 4px;cursor:pointer;}
   .libl{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;} .libl span{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:5px 8px;}
@@ -193,8 +197,8 @@
 
 <script>
 /* ---------- app meta ---------- */
-const APP_VERSION='6.23';
-const APP_BUILD='2026-08-31';
+const APP_VERSION='6.24';
+const APP_BUILD='2026-09-21';
 
 /* ---------- storage ---------- */
 const DEFAULT = {
@@ -275,6 +279,18 @@ const r05=k=>Math.round(k*2)/2;                       // 트레드밀 0.5 단위
 const kmhN=sec=>r05(3600/sec);
 const midK=pr=>kmhN((pr[0]+pr[1])/2);
 const mmss=s=>`${Math.floor(s/60)}:${String(Math.round(s%60)).padStart(2,'0')}`;
+const r01=k=>Math.round(k*10)/10;                      // 트레드밀 0.1 단위 정밀 입력
+const parseSecIn=v=>{ const t=String(v).trim().replace(/[^0-9:]/g,''); if(!t) return null;
+  let n; if(t.includes(':')){ const a=t.split(':'); n=(+a[0]||0)*60+(+a[1]||0); } else n=+t;
+  if(!isFinite(n)) return null; return Math.min(7200,Math.max(5,Math.round(n))); };
+const parseKmhIn=v=>{ const n=parseFloat(String(v).replace(/[^0-9.]/g,'')); if(!isFinite(n)) return null; return Math.min(25,Math.max(1,r01(n))); };
+function inlineEdit(el,cur,parse,done){ const inp=document.createElement('input');
+  inp.className='tin'; inp.type='text'; inp.inputMode='numeric'; inp.value=cur;
+  el.replaceWith(inp); try{inp.focus();inp.select();}catch(e){}
+  let fin=false; const end=v=>{ if(fin) return; fin=true; done(v); };
+  inp.addEventListener('blur',()=>end(parse(inp.value)));
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); inp.blur(); } else if(e.key==='Escape'){ end(null); } });
+}
 function loadJ(k,d){ try{return JSON.parse(localStorage.getItem(k)||'null')??d;}catch(e){return d;} }
 let RT=loadJ('shrc_routines',{}), LIB=loadJ('shrc_lib',[]), rtEditMode=false;
 const saveRTs=()=>localStorage.setItem('shrc_routines',JSON.stringify(RT));
@@ -304,7 +320,7 @@ function routineHTML(n){
   const gh=rt.groups.map((g,gi)=>{
     const rows=g.blocks.map((b,bi)=>{ const Bk=BLK[b.k]||BLK.run;
       const ctl = rtEditMode
-        ? `<div class="stp"><button data-rk="${gi}:${bi}:-0.5">−</button><b>${b.kmh.toFixed(1)}</b><button data-rk="${gi}:${bi}:0.5">+</button><span class="u">km/h</span></div><div class="stp"><button data-rs="${gi}:${bi}:-30">−</button><b>${mmss(b.sec)}</b><button data-rs="${gi}:${bi}:30">+</button></div><button class="xb" data-rx="${gi}:${bi}">×</button>`
+        ? `<div class="stp"><button data-rk="${gi}:${bi}:-0.5">−</button><b class="tap" data-rkv="${gi}:${bi}">${b.kmh.toFixed(1)}</b><button data-rk="${gi}:${bi}:0.5">+</button><span class="u">km/h</span></div><div class="stp"><button data-rs="${gi}:${bi}:-5">−</button><b class="tap" data-rsv="${gi}:${bi}">${mmss(b.sec)}</b><button data-rs="${gi}:${bi}:5">+</button></div><button class="xb" data-rx="${gi}:${bi}">×</button>`
         : `<span class="bk-sp">${b.kmh.toFixed(1)} km/h · ${pace(3600/b.kmh)}</span><span class="bk-t">${mmss(b.sec)}</span>`;
       return `<div class="bk"><i style="background:${Bk.c}"></i><span class="bk-n">${Bk.n}</span>${ctl}</div>`; }).join('');
     const rep = rtEditMode
@@ -316,7 +332,7 @@ function routineHTML(n){
   return `<div class="card"><div class="rt-top"><div><div class="rt-t">트레드밀 스텝 · ${rt.name}${edited?'<span class="rt-ed">수정됨</span>':''}</div><div class="rt-sum">총 <b>${Math.round(sm.sec/60)}분</b> · <b>${sm.dist.toFixed(2)} km</b> · 약 <b>${sm.kcal}</b> kcal</div></div>
       <div class="rt-btns"><button data-rtedit class="${rtEditMode?'on':''}">${rtEditMode?'완료':'✎ 편집'}</button><button data-rtcopy>복사</button>${edited?'<button data-rtreset>초기화</button>':''}</div></div>
     ${gh}
-    ${rtEditMode?`<button class="btn sec" data-rgadd style="margin-top:6px">+ 새 인터벌 그룹</button><div class="row" style="margin-top:8px;align-items:flex-end"><div class="fld" style="margin:0"><label>루틴 저장</label><input id="rtname" placeholder="이름 (예: 템포 20분)"></div><button class="btn sec" data-rtsave style="width:auto;margin:0 0 0 0;padding:10px 14px">저장</button></div>`:''}
+    ${rtEditMode?`<div class="rt-hint">숫자를 <b>탭</b>하면 직접 입력 — 시간은 <b>5:43</b> 또는 <b>343</b>(초), 속도는 <b>10.3</b>까지 0.1 단위.<br>−/+ 는 시간 <b>5초</b> · 속도 <b>0.5</b>, <b>꾹 누르면</b> 빠르게(30초·3.0) 움직여.</div><button class="btn sec" data-rgadd style="margin-top:6px">+ 새 인터벌 그룹</button><div class="row" style="margin-top:8px;align-items:flex-end"><div class="fld" style="margin:0"><label>루틴 저장</label><input id="rtname" placeholder="이름 (예: 템포 20분)"></div><button class="btn sec" data-rtsave style="width:auto;margin:0 0 0 0;padding:10px 14px">저장</button></div>`:''}
     ${lib}<div class="saved" id="rtmsg"></div></div>`;
 }
 function bindRoutine(n){
@@ -324,8 +340,23 @@ function bindRoutine(n){
   q('[data-rtedit]').forEach(b=>b.onclick=()=>{rtEditMode=!rtEditMode; renderToday();});
   q('[data-rtcopy]').forEach(b=>b.onclick=async()=>{const t=rtText(getRoutine(n)); try{await navigator.clipboard.writeText(t);}catch(e){} const m=document.getElementById('rtmsg'); if(m){m.style.color='var(--easy)'; m.textContent='복사됨 · 타이머 앱에 붙여넣기';}});
   q('[data-rtreset]').forEach(b=>b.onclick=()=>{delete RT[dateKey(n)]; saveRTs(); rtEditMode=false; renderToday();});
-  q('[data-rk]').forEach(b=>b.onclick=()=>{const[g,i,d]=b.dataset.rk.split(':'); const rt=W(); const bl=rt.groups[+g].blocks[+i]; bl.kmh=Math.max(1,r05(bl.kmh+parseFloat(d))); S();});
-  q('[data-rs]').forEach(b=>b.onclick=()=>{const[g,i,d]=b.dataset.rs.split(':'); const rt=W(); const bl=rt.groups[+g].blocks[+i]; bl.sec=Math.max(15,bl.sec+parseInt(d)); S();});
+  const HOLD=(btn,step,tick,done)=>{ let t1=null,t2=null,n=0,act=false;
+    const start=e=>{ if(act) return; if(e && e.pointerType==='mouse' && e.button!==0) return; if(e&&e.preventDefault) e.preventDefault();
+      act=true; n=0; tick(step);
+      t1=setTimeout(()=>{ t2=setInterval(()=>{ n++; tick(step*(n>14?6:1)); },110); },450); };
+    const stop=()=>{ if(!act) return; act=false; if(t1) clearTimeout(t1); if(t2) clearInterval(t2); t1=t2=null; done(); };
+    btn.addEventListener('pointerdown',start);
+    ['pointerup','pointercancel','pointerleave'].forEach(ev=>btn.addEventListener(ev,stop)); };
+  q('[data-rk]').forEach(b=>{ const[g,i,d]=b.dataset.rk.split(':'); 
+    HOLD(b,parseFloat(d),dd=>{ const bl=W().groups[+g].blocks[+i]; bl.kmh=Math.min(25,Math.max(1,r01(bl.kmh+dd)));
+      const el=document.querySelector(`[data-rkv="${g}:${i}"]`); if(el) el.textContent=bl.kmh.toFixed(1); },S); });
+  q('[data-rs]').forEach(b=>{ const[g,i,d]=b.dataset.rs.split(':');
+    HOLD(b,parseInt(d),dd=>{ const bl=W().groups[+g].blocks[+i]; bl.sec=Math.min(7200,Math.max(5,bl.sec+dd));
+      const el=document.querySelector(`[data-rsv="${g}:${i}"]`); if(el) el.textContent=mmss(bl.sec); },S); });
+  q('[data-rsv]').forEach(el=>el.onclick=()=>{ const[g,i]=el.dataset.rsv.split(':'); const cur=getRoutine(n).groups[+g].blocks[+i].sec;
+    inlineEdit(el,mmss(cur),parseSecIn,v=>{ if(v!=null && v!==cur){ W().groups[+g].blocks[+i].sec=v; S(); } else renderToday(); }); });
+  q('[data-rkv]').forEach(el=>el.onclick=()=>{ const[g,i]=el.dataset.rkv.split(':'); const cur=getRoutine(n).groups[+g].blocks[+i].kmh;
+    inlineEdit(el,cur.toFixed(1),parseKmhIn,v=>{ if(v!=null && v!==cur){ W().groups[+g].blocks[+i].kmh=v; S(); } else renderToday(); }); });
   q('[data-rr]').forEach(b=>b.onclick=()=>{const[g,d]=b.dataset.rr.split(':'); const rt=W(); rt.groups[+g].rep=Math.max(1,rt.groups[+g].rep+parseInt(d)); S();});
   q('[data-rx]').forEach(b=>b.onclick=()=>{const[g,i]=b.dataset.rx.split(':'); const rt=W(); rt.groups[+g].blocks.splice(+i,1); if(!rt.groups[+g].blocks.length) rt.groups.splice(+g,1); S();});
   q('[data-rgx]').forEach(b=>b.onclick=()=>{const rt=W(); rt.groups.splice(+b.dataset.rgx,1); S();});
@@ -800,6 +831,7 @@ function renderSettings(){
       <div class="zone"><span class="zn">버전</span><span class="zv">v${APP_VERSION} (${APP_BUILD})</span></div>
       <div class="zone"><span class="zn">캐시</span><span class="zv" id="swcache">확인 중…</span></div>
       <div class="zone"><span class="zn">기록</span><span class="zv">러닝 ${LOGS.length}건 · 체중 ${WEIGHTS.length}건</span></div>
+      <div class="zone"><span class="zn">스텝 빌더</span><span class="zv">숫자 탭 = 직접 입력 · −/+ 5초·0.5 · 길게=가속</span></div>
       <button class="btn sec" id="forceupd" style="margin-top:10px">캐시 비우고 새로고침</button>
     </div>`;
   document.getElementById('save').onclick=()=>{
