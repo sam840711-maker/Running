@@ -197,7 +197,7 @@
 
 <script>
 /* ---------- app meta ---------- */
-const APP_VERSION='6.24';
+const APP_VERSION='6.25';
 const APP_BUILD='2026-09-21';
 
 /* ---------- storage ---------- */
@@ -206,10 +206,10 @@ const DEFAULT = {
   restHr:57, maxHr:177, atHr:140, antHr:163, cadence:170,
   startKg:81, tdee:2500, intake:1950, lat:37.28, lon:127.01,
   // paces in sec/km [fast, slow]
-  easy:[435,470], recovery:[460,490], long:[440,460], threshold:[375,385], interval:[345,355],   // 2026-08-31 진행: 임계 6'15~6'25(9.5) · 인터벌 5'45~5'55(10.5)
+  easy:[435,470], recovery:[460,490], long:[440,460], threshold:[360,370], interval:[345,355],   // 2026-09-21 진행: 임계 6'00~6'10(10.0, 9/14 템포 9.5 RPE2 통과) · 인터벌 5'45~5'55(10.5)
   warmup:450, recJog:470, strideKmh:"12~13"
 };
-const PROFILE_SEED='2026-09-17-v3';
+const PROFILE_SEED='2026-09-21-v4';
 function validPace(v){ return Array.isArray(v) && v.length===2 && v.every(x=>typeof x==='number' && isFinite(x) && x>0); }
 function loadProfile(){
   let p; try{ p=Object.assign({}, DEFAULT, JSON.parse(localStorage.getItem('shrc_profile')||'{}')); }catch(e){ return {...DEFAULT}; }
@@ -491,8 +491,8 @@ const SEP_DEFAULT = { month:'2026-09', days:[
   {d:19,kind:'flight',label:'ICN-FUK 16:25',reason:'오후 출발 · 오전 이지 가능',opt:1,heat:'낮 28°C'},
   {d:20,kind:'off',label:'OFF',hint:'easy',reason:'와이프랑 이지 · 막판 가속 금지(내일 인터벌)',heat:'낮 27°C'},
   {d:21,kind:'flight',label:'야간 ICN-CXR',nightDep:'깜라인',force:'interval',reps:5,reason:'오전 인터벌 10.5×5 → 17:20 출발 · 탄수 보충',heat:'낮 28°C'},
-  {d:22,kind:'layover',label:'L/O 깜라인',layover:'깜라인',hint:'easy',coast:1,humid:1,heat:'깜라인 30°C·습함'},
-  {d:23,kind:'flight',label:'CXR-PUS 08:05',redeye:1,reason:'새벽도착 · 회복'},
+  {d:22,kind:'layover',label:'L/O 깜라인',layover:'깜라인',force:'walk',coast:1,humid:1,reason:'인터벌 다음날 · 걷기 30~40분 HR≤120',heat:'깜라인 30°C·습함'},
+  {d:23,kind:'flight',label:'CXR-PUS 08:05',redeye:1,force:'easyrec',reason:'새벽도착 → 4~5h 수면 후 오후 회복런 4km HR≤130 · 잠 부족하면 걷기 · 내일 다구간'},
   {d:24,kind:'flight',label:'다구간 (추석)',sectors:3,reason:'PUS-KIX·CJU-GMP · 레드아이 다음날 회복',heat:'낮 27°C'},
   {d:25,kind:'off',label:'RQOFF (추석)',hint:'easyrec',reason:'깜라인 트립+다구간 회복',heat:'낮 27°C'},
   {d:26,kind:'off',label:'RQOFF (추석)',hint:'long',reason:'롱런 12~14km · 7분20~40초',heat:'낮 27°C'},
@@ -534,7 +534,40 @@ const AUG_DEFAULT = { month:'2026-08', days:[
   {d:30,kind:'flight',label:'국내 다구간 05:25',sectors:4,early:1,reason:'이른 show · 다구간'},
   {d:31,kind:'flight',label:'야간 ICN-DAD',nightDep:'다낭',reason:'저녁 출발',heat:'낮 30°C'},
 ]};
-const DEFAULT_ROSTERS = { '2026-08':AUG_DEFAULT, '2026-09':SEP_DEFAULT };
+const OCT_DEFAULT = { month:'2026-10', days:[
+  {d:1,kind:'flight',label:'야간 ICN-KIX 20:50',nightDep:'오사카',force:'interval',reps:5,reason:'오전 인터벌 10.5×5 재시도 · 공복 금지(2~3h 전 탄수) · 출발 3h 전 종료',heat:'낮 24°C'},
+  {d:2,kind:'flight',label:'KIX-ICN 03:25 도착',redeye:1,reason:'퀵턴 새벽도착 · 회복'},
+  {d:3,kind:'off',label:'OFF (개천절)',hint:'easyrec',reason:'퀵턴 다음날 · 회복 이지',heat:'낮 23°C'},
+  {d:4,kind:'flight',label:'GMP-CJU·KWJ-CJU 12:00',sectors:4,layover:'대구',reason:'4구간 · 대구 L/O'},
+  {d:5,kind:'layover',label:'L/O 대구 → 야간 TAE-BKK 20:15',layover:'대구',nightDep:'방콕',force:'easy',reason:'오전 대구 야외 이지 5~6km · 20:15 출발 3h 전 종료',heat:'낮 23°C'},
+  {d:6,kind:'layover',label:'L/O 방콕',layover:'방콕',humid:1,reason:'호텔 트레드밀 이지 · 00:55 레드아이 전 낮잠 우선',heat:'방콕 32°C·습함'},
+  {d:7,kind:'flight',label:'BKK-TAE 09:40 도착',redeye:1,layover:'대구',reason:'레드아이 · 대구 L/O 회복'},
+  {d:8,kind:'flight',label:'TAE-CJU 07:55',early:1,sectors:2,reason:'이른 show · 레드아이 다음날 회복'},
+  {d:9,kind:'off',label:'OFF (한글날)',hint:'threshold',reason:'템포 10.0 첫 실전 · 20분 · 공복 금지',heat:'낮 22°C'},
+  {d:10,kind:'reserve',label:'SBY-B 13:00',force:'easyrec',reason:'템포 다음날 · 13시 대기 전 오전 회복런',heat:'낮 22°C'},
+  {d:11,kind:'flight',label:'ICN-BKK 16:20',layover:'방콕',opt:1,reason:'오후 출발 · 오전 걷기 옵션'},
+  {d:12,kind:'layover',label:'L/O 방콕 → BKK-ICN 22:55',layover:'방콕',nightDep:'인천',humid:1,reason:'호텔 트레드밀 이지 · 야간 출발 전 낮잠',heat:'방콕 32°C·습함'},
+  {d:13,kind:'flight',label:'BKK-ICN 07:40 도착',redeye:1,reason:'새벽도착 · 회복'},
+  {d:14,kind:'off',label:'OFF',hint:'long',reason:'롱런 13~14km · 7분20~40초 균등 · 막판가속 금지',heat:'낮 21°C'},
+  {d:15,kind:'reserve',label:'RESV (12h 전 통보)',force:'easyrec',reason:'롱런 다음날 회복런 · 콜 대비 폰 휴대',heat:'낮 21°C'},
+  {d:16,kind:'reserve',label:'열차 이동 17:23 → 대구 L/O',force:'easy',reason:'오전 이지 5~6km · 오후 KTX',heat:'낮 21°C'},
+  {d:17,kind:'flight',label:'TAE-NRT 왕복 13:40',layover:'대구',sectors:2,opt:1,reason:'오후 출발 · 오전 걷기 옵션 · 대구 L/O'},
+  {d:18,kind:'flight',label:'TAE-NRT 왕복 09:30 → 열차 귀가',sectors:2,reason:'19:13 귀가 · 휴식'},
+  {d:19,kind:'off',label:'OFF',hint:'interval',reps:5,reason:'인터벌 10.5×5 · 공복 금지 · 내일 08:40 출발',heat:'낮 20°C'},
+  {d:20,kind:'flight',label:'ICN-NRT 왕복 08:40',early:1,sectors:2,reason:'이른 show · 회복'},
+  {d:21,kind:'flight',label:'ICN-KIX 왕복 09:10',sectors:2,opt:1,reason:'16:30 종료 · 저녁 걷기 옵션'},
+  {d:22,kind:'reserve',label:'JCRM 지상교육 09:00~18:00',force:'easyrec',reason:'교육 후 저녁 가벼운 이지 · 내일 롱런이라 막판가속 금지',heat:'낮 20°C'},
+  {d:23,kind:'off',label:'RQOFF',hint:'long',reason:'롱런 14~15km · 균등 · 막판가속 금지',heat:'낮 20°C'},
+  {d:24,kind:'off',label:'RQOFF',force:'walk',reason:'롱런 다음날 · 걷기 (가벼우면 회복런)',heat:'낮 20°C'},
+  {d:25,kind:'off',label:'OFF',hint:'easy',reason:'이지 · 내일 템포라 막판가속 금지',heat:'낮 19°C'},
+  {d:26,kind:'off',label:'RQOFF',hint:'threshold',reason:'템포 10.0 · 공복 금지',heat:'낮 19°C'},
+  {d:27,kind:'reserve',label:'SBY-A 05:00~17:00',force:'rest',reason:'이른 대기 · 17시 이후 걷기 옵션'},
+  {d:28,kind:'flight',label:'GMP-CJU·CJJ-CJU 13:05',sectors:4,reason:'4구간 · 오후~야간 근무'},
+  {d:29,kind:'off',label:'OFF',hint:'interval',reps:5,reason:'인터벌 10.5×5 · 내일 07:40 출발 · 일찍 자기',heat:'낮 19°C'},
+  {d:30,kind:'flight',label:'ICN-KLO 07:40',early:1,layover:'칼리보',humid:1,opt:1,reason:'12:55 도착 · 저녁 이지 옵션(해 진 뒤)',heat:'칼리보 31°C·습함'},
+  {d:31,kind:'flight',label:'KLO-ICN 12:45',reason:'19:05 귀국 · 휴식'},
+]};
+const DEFAULT_ROSTERS = { '2026-08':AUG_DEFAULT, '2026-09':SEP_DEFAULT, '2026-10':OCT_DEFAULT };
 
 // 다음날이 이른 근무(early)·레드아이·5섹터면 저녁 퀄리티 금지
 function isHardNext(days,i){ const nx=days[i+1]; return !!(nx && (nx.early||nx.redeye||(nx.sectors&&nx.sectors>=5))); }
@@ -600,12 +633,21 @@ function generatePlan(roster){
   days.forEach((d,i)=>{ plan[d.d]=genDay(days,i); });
   return plan;
 }
-const ROSTER_SEED='2026-08+09-v7';
+const ROSTER_SEED='2026-08+09+10-v8';
+const SEED_MONTHS=['2026-10'];             // 이번 시드로 통째 교체할 달 — 다른 달의 앱 내 일정변경은 보존
+const SEED_DAY_PATCH={'2026-09':[22,23]};  // 기존 달에서 특정 날만 갱신
 function loadRosters(){ try{
     let map=JSON.parse(localStorage.getItem('shrc_rosters')||'null');
     const seed=localStorage.getItem('shrc_roster_seed');
     if(!map){ map={}; const old=JSON.parse(localStorage.getItem('shrc_roster')||'null'); if(old&&old.month&&Array.isArray(old.days)) map[old.month]=old; map=Object.assign({}, DEFAULT_ROSTERS, map); }
-    if(seed!==ROSTER_SEED){ map=Object.assign({}, map, DEFAULT_ROSTERS); localStorage.setItem('shrc_roster_seed',ROSTER_SEED); }
+    if(seed!==ROSTER_SEED){
+      const cp=o=>JSON.parse(JSON.stringify(o));
+      map=Object.assign({}, cp(DEFAULT_ROSTERS), map);                       // 없는 달은 추가
+      SEED_MONTHS.forEach(m=>{ if(DEFAULT_ROSTERS[m]) map[m]=cp(DEFAULT_ROSTERS[m]); });
+      Object.entries(SEED_DAY_PATCH).forEach(([m,ds])=>{ if(!map[m]||!DEFAULT_ROSTERS[m]) return;
+        ds.forEach(d=>{ const nd=DEFAULT_ROSTERS[m].days.find(x=>x.d===d); if(!nd) return;
+          const i=map[m].days.findIndex(x=>x.d===d); if(i>=0) map[m].days[i]=cp(nd); else map[m].days.push(cp(nd)); }); });
+      localStorage.setItem('shrc_roster_seed',ROSTER_SEED); }
     localStorage.setItem('shrc_rosters', JSON.stringify(map));
     return map;
   }catch(e){ return Object.assign({}, DEFAULT_ROSTERS); } }
@@ -831,6 +873,8 @@ function renderSettings(){
       <div class="zone"><span class="zn">버전</span><span class="zv">v${APP_VERSION} (${APP_BUILD})</span></div>
       <div class="zone"><span class="zn">캐시</span><span class="zv" id="swcache">확인 중…</span></div>
       <div class="zone"><span class="zn">기록</span><span class="zv">러닝 ${LOGS.length}건 · 체중 ${WEIGHTS.length}건</span></div>
+      <div class="zone"><span class="zn">내장 로스터</span><span class="zv">2026-08 · 09 · 10 (시드 v8)</span></div>
+      <div class="zone"><span class="zn">템포 속도</span><span class="zv">${midK(P.threshold).toFixed(1)} km/h (임계 ${paceRange(P.threshold)})</span></div>
       <div class="zone"><span class="zn">스텝 빌더</span><span class="zv">숫자 탭 = 직접 입력 · −/+ 5초·0.5 · 길게=가속</span></div>
       <button class="btn sec" id="forceupd" style="margin-top:10px">캐시 비우고 새로고침</button>
     </div>`;
