@@ -197,7 +197,7 @@
 
 <script>
 /* ---------- app meta ---------- */
-const APP_VERSION='6.25';
+const APP_VERSION='6.26';
 const APP_BUILD='2026-09-21';
 
 /* ---------- storage ---------- */
@@ -280,8 +280,10 @@ const kmhN=sec=>r05(3600/sec);
 const midK=pr=>kmhN((pr[0]+pr[1])/2);
 const mmss=s=>`${Math.floor(s/60)}:${String(Math.round(s%60)).padStart(2,'0')}`;
 const r01=k=>Math.round(k*10)/10;                      // 트레드밀 0.1 단위 정밀 입력
-const parseSecIn=v=>{ const t=String(v).trim().replace(/[^0-9:]/g,''); if(!t) return null;
-  let n; if(t.includes(':')){ const a=t.split(':'); n=(+a[0]||0)*60+(+a[1]||0); } else n=+t;
+// 시간 입력: 5:43 · 5.43 · 5,43 → 5분43초 / 숫자만이면 타이머식(뒤 2자리=초): 3000→30:00, 543→5:43, 90→1:30
+const parseSecIn=v=>{ const t=String(v).trim().replace(/[.,]/g,':').replace(/[^0-9:]/g,''); if(!t) return null;
+  let n; if(t.includes(':')){ const a=t.split(':'); n=(+a[0]||0)*60+(+a[1]||0); }
+  else { const mm=t.length>2?+t.slice(0,-2):0, ss=+t.slice(-2); n=mm*60+ss; }
   if(!isFinite(n)) return null; return Math.min(7200,Math.max(5,Math.round(n))); };
 const parseKmhIn=v=>{ const n=parseFloat(String(v).replace(/[^0-9.]/g,'')); if(!isFinite(n)) return null; return Math.min(25,Math.max(1,r01(n))); };
 function inlineEdit(el,cur,parse,done){ const inp=document.createElement('input');
@@ -332,7 +334,7 @@ function routineHTML(n){
   return `<div class="card"><div class="rt-top"><div><div class="rt-t">트레드밀 스텝 · ${rt.name}${edited?'<span class="rt-ed">수정됨</span>':''}</div><div class="rt-sum">총 <b>${Math.round(sm.sec/60)}분</b> · <b>${sm.dist.toFixed(2)} km</b> · 약 <b>${sm.kcal}</b> kcal</div></div>
       <div class="rt-btns"><button data-rtedit class="${rtEditMode?'on':''}">${rtEditMode?'완료':'✎ 편집'}</button><button data-rtcopy>복사</button>${edited?'<button data-rtreset>초기화</button>':''}</div></div>
     ${gh}
-    ${rtEditMode?`<div class="rt-hint">숫자를 <b>탭</b>하면 직접 입력 — 시간은 <b>5:43</b> 또는 <b>343</b>(초), 속도는 <b>10.3</b>까지 0.1 단위.<br>−/+ 는 시간 <b>5초</b> · 속도 <b>0.5</b>, <b>꾹 누르면</b> 빠르게(30초·3.0) 움직여.</div><button class="btn sec" data-rgadd style="margin-top:6px">+ 새 인터벌 그룹</button><div class="row" style="margin-top:8px;align-items:flex-end"><div class="fld" style="margin:0"><label>루틴 저장</label><input id="rtname" placeholder="이름 (예: 템포 20분)"></div><button class="btn sec" data-rtsave style="width:auto;margin:0 0 0 0;padding:10px 14px">저장</button></div>`:''}
+    ${rtEditMode?`<div class="rt-hint">숫자를 <b>탭</b>하면 직접 입력 — 시간은 숫자만 — <b>3000</b>=30:00 · <b>543</b>=5:43 · <b>90</b>=1:30 (<b>.</b> <b>,</b> <b>:</b> 구분도 OK), 속도는 <b>10.3</b>까지 0.1 단위.<br>−/+ 는 시간 <b>5초</b> · 속도 <b>0.5</b>, <b>꾹 누르면</b> 빠르게(30초·3.0) 움직여.</div><button class="btn sec" data-rgadd style="margin-top:6px">+ 새 인터벌 그룹</button><div class="row" style="margin-top:8px;align-items:flex-end"><div class="fld" style="margin:0"><label>루틴 저장</label><input id="rtname" placeholder="이름 (예: 템포 20분)"></div><button class="btn sec" data-rtsave style="width:auto;margin:0 0 0 0;padding:10px 14px">저장</button></div>`:''}
     ${lib}<div class="saved" id="rtmsg"></div></div>`;
 }
 function bindRoutine(n){
@@ -875,7 +877,7 @@ function renderSettings(){
       <div class="zone"><span class="zn">기록</span><span class="zv">러닝 ${LOGS.length}건 · 체중 ${WEIGHTS.length}건</span></div>
       <div class="zone"><span class="zn">내장 로스터</span><span class="zv">2026-08 · 09 · 10 (시드 v8)</span></div>
       <div class="zone"><span class="zn">템포 속도</span><span class="zv">${midK(P.threshold).toFixed(1)} km/h (임계 ${paceRange(P.threshold)})</span></div>
-      <div class="zone"><span class="zn">스텝 빌더</span><span class="zv">숫자 탭 = 직접 입력 · −/+ 5초·0.5 · 길게=가속</span></div>
+      <div class="zone"><span class="zn">스텝 빌더</span><span class="zv">숫자 탭 = 직접 입력(3000=30분) · −/+ 5초·0.5 · 길게=가속</span></div>
       <button class="btn sec" id="forceupd" style="margin-top:10px">캐시 비우고 새로고침</button>
     </div>`;
   document.getElementById('save').onclick=()=>{
